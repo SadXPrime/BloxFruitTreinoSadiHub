@@ -1,2 +1,2347 @@
-# BloxFruitTreinoSadiHub
-Exploiter Blox fruit treino pvp legivel, legal.
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local LogService = game:GetService("LogService")
+local RunService = game:GetService("RunService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local camera = workspace.CurrentCamera
+
+-- registro das conexões globais (pra poder limpar tudo ao sair do menu)
+local conexoesGlobais = {}
+local function conectar(sinal, fn)
+	local c = sinal:Connect(fn)
+	table.insert(conexoesGlobais, c)
+	return c
+end
+
+----------------------------------------------------------------
+-- CONFIGURÁVEIS
+----------------------------------------------------------------
+local GUI_ID = "MenuPrincipal_ID"
+local BUTTON_ID = "BotaoAbrirMenu_ID"
+local IMAGEM_BOTAO = "rbxassetid://6031280882" 
+local IMAGEM_FUNDO = "" 
+
+local DESLOCAMENTO_PARA_CIMA = 200
+local POSICAO_ALEATORIA = true
+local POSICAO_FIXA = UDim2.new(0.5, -23, 0, 16)
+local POSICOES_POSSIVEIS = {
+	UDim2.new(0, 16, 0.5, -23), UDim2.new(1, -62, 0.5, -23),
+	UDim2.new(0.5, -23, 0, 16), UDim2.new(0.5, -23, 1, -62),
+	UDim2.new(0, 16, 0, 16), UDim2.new(1, -62, 0, 16),
+	UDim2.new(0, 16, 1, -62), UDim2.new(1, -62, 1, -62),
+}
+
+local TEMA_PADRAO = "Roxo"
+
+----------------------------------------------------------------
+-- ANTI-DUPLICAÇÃO
+----------------------------------------------------------------
+local existente = playerGui:FindFirstChild(GUI_ID)
+if existente then existente:Destroy() end
+
+----------------------------------------------------------------
+-- SISTEMA BOX SORU (Aumenta o TAMANHO DO TORSO até 20000%)
+----------------------------------------------------------------
+local boxSoruAtivo = false
+local boxSoruPorcentagem = 10
+local ultimoUpdateBoxSoru = 0
+
+local TAMANHO_ORIGINAL_R6 = Vector3.new(2, 2, 1)
+local TAMANHO_ORIGINAL_R15 = Vector3.new(2, 2, 1)
+
+local function calcularNovoTamanho(tamanhoOriginal)
+	local multiplicador = 1 + (boxSoruPorcentagem / 100)
+	return Vector3.new(
+		tamanhoOriginal.X * multiplicador,
+		tamanhoOriginal.Y * multiplicador,
+		tamanhoOriginal.Z * multiplicador
+	)
+end
+
+local function aplicarAumentoTorso(character)
+	if not character then return end
+	if Players:GetPlayerFromCharacter(character) == player then return end
+	
+	local torso = character:FindFirstChild("Torso")
+	if torso and torso:IsA("BasePart") then
+		torso.Size = calcularNovoTamanho(TAMANHO_ORIGINAL_R6)
+		return
+	end
+	
+	local upperTorso = character:FindFirstChild("UpperTorso")
+	if upperTorso and upperTorso:IsA("BasePart") then
+		upperTorso.Size = calcularNovoTamanho(TAMANHO_ORIGINAL_R15)
+		return
+	end
+end
+
+local function removerAumentoTorso(character)
+	if not character then return end
+	if Players:GetPlayerFromCharacter(character) == player then return end
+	
+	local torso = character:FindFirstChild("Torso")
+	if torso and torso:IsA("BasePart") then
+		torso.Size = TAMANHO_ORIGINAL_R6
+		return
+	end
+	
+	local upperTorso = character:FindFirstChild("UpperTorso")
+	if upperTorso and upperTorso:IsA("BasePart") then
+		upperTorso.Size = TAMANHO_ORIGINAL_R15
+		return
+	end
+end
+
+local function gerenciarTamanhosGlobais(ativo)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character then
+			if ativo then aplicarAumentoTorso(p.Character) else removerAumentoTorso(p.Character) end
+		end
+	end
+	
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
+			if ativo then aplicarAumentoTorso(obj) else removerAumentoTorso(obj) end
+		end
+	end
+end
+
+local function atualizarTamanhosGlobais()
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character then
+			aplicarAumentoTorso(p.Character)
+		end
+	end
+	
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(obj) then
+			aplicarAumentoTorso(obj)
+		end
+	end
+end
+
+conectar(Players.PlayerAdded, function(p)
+	if p == player then return end
+	
+	p.CharacterAdded:Connect(function(char)
+		task.wait(0.5)
+		if boxSoruAtivo then aplicarAumentoTorso(char) end
+	end)
+end)
+
+conectar(workspace.DescendantAdded, function(desc)
+	if boxSoruAtivo and desc:IsA("Model") and desc:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(desc) then
+		task.wait(0.2)
+		aplicarAumentoTorso(desc)
+	end
+end)
+
+conectar(workspace.DescendantAdded, function(desc)
+	if boxSoruAtivo and (desc.Name == "Torso" or desc.Name == "UpperTorso") then
+		local character = desc.Parent
+		if character and character:IsA("Model") and character:FindFirstChild("Humanoid") then
+			if Players:GetPlayerFromCharacter(character) ~= player then
+				task.wait(0.1)
+				aplicarAumentoTorso(character)
+			end
+		end
+	end
+end)
+
+local function atualizarSistemaBoxSoru()
+	if boxSoruAtivo then
+		gerenciarTamanhosGlobais(true)
+	else
+		gerenciarTamanhosGlobais(false)
+	end
+end
+
+----------------------------------------------------------------
+-- TEMAS DE COR
+----------------------------------------------------------------
+local Temas = {
+	Vermelho = { on = Color3.fromRGB(220, 60, 60), fundo = Color3.fromRGB(28, 18, 18), topo = Color3.fromRGB(36, 22, 22), item = Color3.fromRGB(42, 26, 26), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 235) },
+	Verde = { on = Color3.fromRGB(46, 204, 113), fundo = Color3.fromRGB(16, 26, 20), topo = Color3.fromRGB(22, 34, 26), item = Color3.fromRGB(26, 40, 30), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(235, 240, 236) },
+	Rosa = { on = Color3.fromRGB(255, 105, 180), fundo = Color3.fromRGB(30, 18, 26), topo = Color3.fromRGB(38, 22, 32), item = Color3.fromRGB(44, 26, 38), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(245, 235, 240) },
+	Branco = { on = Color3.fromRGB(90, 120, 230), fundo = Color3.fromRGB(238, 238, 242), topo = Color3.fromRGB(224, 224, 230), item = Color3.fromRGB(216, 216, 224), off = Color3.fromRGB(180, 180, 190), texto = Color3.fromRGB(24, 24, 28) },
+	["Preto com Cinza"] = { on = Color3.fromRGB(150, 150, 158), fundo = Color3.fromRGB(16, 16, 18), topo = Color3.fromRGB(24, 24, 26), item = Color3.fromRGB(30, 30, 34), off = Color3.fromRGB(60, 60, 66), texto = Color3.fromRGB(230, 230, 232) },
+	Roxo = { on = Color3.fromRGB(147, 112, 219), fundo = Color3.fromRGB(22, 18, 30), topo = Color3.fromRGB(28, 22, 38), item = Color3.fromRGB(34, 27, 46), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(238, 235, 245) },
+	Azul = { on = Color3.fromRGB(52, 152, 219), fundo = Color3.fromRGB(16, 22, 30), topo = Color3.fromRGB(20, 28, 38), item = Color3.fromRGB(24, 34, 46), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(235, 240, 245) },
+	Laranja = { on = Color3.fromRGB(230, 126, 34), fundo = Color3.fromRGB(30, 22, 16), topo = Color3.fromRGB(38, 28, 20), item = Color3.fromRGB(44, 32, 24), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(245, 238, 232) },
+	Dourado = { on = Color3.fromRGB(212, 175, 55), fundo = Color3.fromRGB(26, 22, 14), topo = Color3.fromRGB(34, 28, 18), item = Color3.fromRGB(40, 33, 22), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(245, 240, 225) },
+	["Roxo Cósmico"] = { on = Color3.fromRGB(138, 43, 226), fundo = Color3.fromRGB(18, 14, 30), topo = Color3.fromRGB(24, 18, 40), item = Color3.fromRGB(30, 22, 48), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 250), vfx = true, vfxCores = {Color3.fromRGB(138, 43, 226), Color3.fromRGB(30, 30, 60)} },
+	["Roxo com VFX"] = { on = Color3.fromRGB(160, 90, 255), fundo = Color3.fromRGB(20, 16, 32), topo = Color3.fromRGB(26, 20, 42), item = Color3.fromRGB(32, 24, 50), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 250), vfx = true, vfxCores = {Color3.fromRGB(160, 90, 255), Color3.fromRGB(60, 200, 255)} },
+	["Rosa com VFX"] = { on = Color3.fromRGB(255, 105, 180), fundo = Color3.fromRGB(30, 16, 26), topo = Color3.fromRGB(38, 20, 32), item = Color3.fromRGB(46, 24, 38), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(250, 235, 242), vfx = true, vfxCores = {Color3.fromRGB(255, 105, 180), Color3.fromRGB(180, 90, 255)} },
+}
+
+local temaAtualNome = TEMA_PADRAO
+local modoLeveAtivo = false
+
+local function arredondar(obj, raio)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, raio)
+	c.Parent = obj
+	return c
+end
+
+----------------------------------------------------------------
+-- SCREENGUI
+----------------------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = GUI_ID
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = playerGui
+
+----------------------------------------------------------------
+-- BOTÃO DE ABRIR/FECHAR (INALTERADO)
+----------------------------------------------------------------
+local botaoAbrir = Instance.new("ImageButton")
+botaoAbrir.Name = BUTTON_ID
+botaoAbrir.Size = UDim2.fromOffset(46, 46)
+
+local alturaTela = camera.ViewportSize.Y
+local posBase = POSICAO_ALEATORIA and POSICOES_POSSIVEIS[math.random(1, #POSICOES_POSSIVEIS)] or POSICAO_FIXA
+local yInicial = math.max(posBase.Y.Scale * alturaTela + posBase.Y.Offset - DESLOCAMENTO_PARA_CIMA, 8)
+botaoAbrir.Position = UDim2.new(posBase.X.Scale, posBase.X.Offset, 0, yInicial)
+
+botaoAbrir.Image = IMAGEM_BOTAO
+botaoAbrir.ScaleType = Enum.ScaleType.Fit
+botaoAbrir.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+botaoAbrir.BackgroundTransparency = 0.1
+botaoAbrir.AutoButtonColor = false
+botaoAbrir.Parent = gui
+arredondar(botaoAbrir, 12)
+
+local fallbackText = Instance.new("TextLabel")
+fallbackText.Size = UDim2.fromScale(1, 1)
+fallbackText.BackgroundTransparency = 1
+fallbackText.Text = "⚙"
+fallbackText.TextSize = 24
+fallbackText.TextColor3 = Color3.new(1, 1, 1)
+fallbackText.Font = Enum.Font.GothamBold
+fallbackText.Parent = botaoAbrir
+
+local bordaBotao = Instance.new("UIStroke")
+bordaBotao.Thickness = 2
+bordaBotao.Parent = botaoAbrir
+
+----------------------------------------------------------------
+-- JANELA PRINCIPAL
+----------------------------------------------------------------
+local ALTURA_JANELA = 460
+local LARGURA_JANELA = 340
+local ALTURA_TOPO = 56
+
+local janela = Instance.new("Frame")
+janela.Name = "Janela"
+janela.Size = UDim2.fromOffset(LARGURA_JANELA, ALTURA_JANELA)
+janela.Position = UDim2.new(0.5, -LARGURA_JANELA / 2, 0.5, -ALTURA_JANELA / 2)
+janela.ClipsDescendants = true
+janela.Visible = false
+janela.BorderSizePixel = 0
+janela.Parent = gui
+arredondar(janela, 16)
+
+-- degradê sutil no fundo da janela (dá profundidade)
+local gradFundo = Instance.new("UIGradient")
+gradFundo.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 195))
+gradFundo.Rotation = 90
+gradFundo.Parent = janela
+
+if IMAGEM_FUNDO ~= "" then
+	local fundoImg = Instance.new("ImageLabel")
+	fundoImg.Size = UDim2.fromScale(1, 1)
+	fundoImg.BackgroundTransparency = 1
+	fundoImg.Image = IMAGEM_FUNDO
+	fundoImg.ImageTransparency = 0.75
+	fundoImg.ScaleType = Enum.ScaleType.Crop
+	fundoImg.ZIndex = 0
+	fundoImg.Parent = janela
+end
+
+local borda = Instance.new("UIStroke")
+borda.Thickness = 2
+borda.Transparency = 0.15
+borda.Parent = janela
+
+-- TOPO
+local topo = Instance.new("Frame")
+topo.Name = "Topo"
+topo.Size = UDim2.new(1, 0, 0, ALTURA_TOPO)
+topo.BorderSizePixel = 0
+topo.Parent = janela
+arredondar(topo, 16)
+
+-- preenchimento pra esconder o arredondado de baixo do topo
+local topoFill = Instance.new("Frame")
+topoFill.Size = UDim2.new(1, 0, 0, 16)
+topoFill.Position = UDim2.new(0, 0, 1, -16)
+topoFill.BorderSizePixel = 0
+topoFill.Parent = topo
+
+-- linha de destaque embaixo do topo
+local linhaTopo = Instance.new("Frame")
+linhaTopo.Name = "LinhaTopo"
+linhaTopo.Size = UDim2.new(1, 0, 0, 2)
+linhaTopo.Position = UDim2.fromOffset(0, ALTURA_TOPO)
+linhaTopo.BorderSizePixel = 0
+linhaTopo.Parent = janela
+
+local linhaGrad = Instance.new("UIGradient")
+linhaGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.9),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(1, 0.9),
+})
+linhaGrad.Parent = linhaTopo
+
+local titulo = Instance.new("TextLabel")
+titulo.Size = UDim2.new(1, -70, 0, 22)
+titulo.Position = UDim2.fromOffset(18, 9)
+titulo.BackgroundTransparency = 1
+titulo.Text = "Menu Principal"
+titulo.TextSize = 18
+titulo.Font = Enum.Font.GothamBold
+titulo.TextXAlignment = Enum.TextXAlignment.Left
+titulo.Parent = topo
+
+local subtitulo = Instance.new("TextLabel")
+subtitulo.Size = UDim2.new(1, -70, 0, 14)
+subtitulo.Position = UDim2.fromOffset(18, 31)
+subtitulo.BackgroundTransparency = 1
+subtitulo.Text = "Painel de funções"
+subtitulo.TextSize = 11
+subtitulo.TextTransparency = 0.45
+subtitulo.Font = Enum.Font.Gotham
+subtitulo.TextXAlignment = Enum.TextXAlignment.Left
+subtitulo.Parent = topo
+
+local fechar = Instance.new("TextButton")
+fechar.Size = UDim2.fromOffset(30, 30)
+fechar.Position = UDim2.new(1, -42, 0.5, -15)
+fechar.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+fechar.Text = "×"
+fechar.TextColor3 = Color3.new(1, 1, 1)
+fechar.TextSize = 22
+fechar.Font = Enum.Font.GothamBold
+fechar.AutoButtonColor = false
+fechar.Parent = topo
+arredondar(fechar, 10)
+
+fechar.MouseEnter:Connect(function()
+	TweenService:Create(fechar, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(235, 80, 80) }):Play()
+end)
+fechar.MouseLeave:Connect(function()
+	TweenService:Create(fechar, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(200, 60, 60) }):Play()
+end)
+
+----------------------------------------------------------------
+-- ABAS
+----------------------------------------------------------------
+local NOMES_ABAS = { "Início", "Treino", "Full", "Configs" }
+
+local barraAbas = Instance.new("Frame")
+barraAbas.Name = "BarraAbas"
+barraAbas.Size = UDim2.new(1, -24, 0, 34)
+barraAbas.Position = UDim2.fromOffset(12, ALTURA_TOPO + 12)
+barraAbas.BackgroundTransparency = 1
+barraAbas.Parent = janela
+
+local layoutAbas = Instance.new("UIListLayout")
+layoutAbas.FillDirection = Enum.FillDirection.Horizontal
+layoutAbas.Padding = UDim.new(0, 8)
+layoutAbas.SortOrder = Enum.SortOrder.LayoutOrder
+layoutAbas.Parent = barraAbas
+
+local conteudo = Instance.new("Frame")
+conteudo.Name = "Conteudo"
+conteudo.Size = UDim2.new(1, -24, 1, -(ALTURA_TOPO + 60))
+conteudo.Position = UDim2.fromOffset(12, ALTURA_TOPO + 56)
+conteudo.BackgroundTransparency = 1
+conteudo.Parent = janela
+
+local paginas = {}
+local function criarPagina(nome)
+	local pagina = Instance.new("ScrollingFrame")
+	pagina.Name = "Pagina_" .. nome
+	pagina.Size = UDim2.fromScale(1, 1)
+	pagina.BackgroundTransparency = 1
+	pagina.BorderSizePixel = 0
+	pagina.ScrollBarThickness = 3
+	pagina.ScrollBarImageTransparency = 0.4
+	pagina.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	pagina.CanvasSize = UDim2.new(0, 0, 0, 0)
+	pagina.Visible = false
+	pagina.Parent = conteudo
+
+	local l = Instance.new("UIListLayout")
+	l.Padding = UDim.new(0, 8)
+	l.SortOrder = Enum.SortOrder.LayoutOrder
+	l.Parent = pagina
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingRight = UDim.new(0, 6)
+	pad.PaddingBottom = UDim.new(0, 6)
+	pad.Parent = pagina
+
+	paginas[nome] = pagina
+	return pagina
+end
+
+local paginaInicio = criarPagina("Início")
+local paginaTreino = criarPagina("Treino")
+local paginaFull = criarPagina("Full")
+local paginaConfigs = criarPagina("Configs")
+
+local botoesAbas = {}
+local abaAtual = "Início"
+local COR_TEXTO_ABA_ATIVA = Color3.new(1, 1, 1)
+
+local function selecionarAba(nome)
+	abaAtual = nome
+	for n, pag in pairs(paginas) do pag.Visible = (n == nome) end
+	for n, btn in pairs(botoesAbas) do
+		local selecionado = (n == nome)
+		local tema = Temas[temaAtualNome]
+		TweenService:Create(btn, TweenInfo.new(0.15), {
+			BackgroundColor3 = selecionado and tema.on or tema.item,
+			TextColor3 = selecionado and COR_TEXTO_ABA_ATIVA or tema.texto,
+		}):Play()
+	end
+end
+
+for i, nome in ipairs(NOMES_ABAS) do
+	local btn = Instance.new("TextButton")
+	btn.Name = "Aba_" .. nome
+	btn.Size = UDim2.new(0.25, -6, 1, 0)
+	btn.LayoutOrder = i
+	btn.Text = nome
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 12
+	btn.AutoButtonColor = false
+	btn.BorderSizePixel = 0
+	btn.Parent = barraAbas
+	arredondar(btn, 10)
+	btn.MouseButton1Click:Connect(function() selecionarAba(nome) end)
+	botoesAbas[nome] = btn
+end
+
+----------------------------------------------------------------
+-- COMPONENTES (cartão, título de seção, toggle, slider)
+----------------------------------------------------------------
+local tweenInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local registroToggles = {}
+local registroSliders = {}
+local registroTitulos = {}
+local registroCartoes = {}
+
+local function criarTitulo(pai, texto, ordem)
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(1, 0, 0, 18)
+	l.LayoutOrder = ordem
+	l.BackgroundTransparency = 1
+	l.Text = string.upper(texto)
+	l.TextSize = 11
+	l.Font = Enum.Font.GothamBold
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Parent = pai
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 4)
+	pad.Parent = l
+
+	table.insert(registroTitulos, l)
+	return l
+end
+
+local function criarCartao(pai, tituloTexto, corpoTexto, ordem)
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, 0, 0, 0)
+	item.AutomaticSize = Enum.AutomaticSize.Y
+	item.LayoutOrder = ordem
+	item.BorderSizePixel = 0
+	item.Parent = pai
+	arredondar(item, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+	stroke.Parent = item
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 12)
+	pad.PaddingBottom = UDim.new(0, 12)
+	pad.PaddingLeft = UDim.new(0, 14)
+	pad.PaddingRight = UDim.new(0, 14)
+	pad.Parent = item
+
+	local lay = Instance.new("UIListLayout")
+	lay.Padding = UDim.new(0, 4)
+	lay.SortOrder = Enum.SortOrder.LayoutOrder
+	lay.Parent = item
+
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.new(1, 0, 0, 20)
+	t.LayoutOrder = 1
+	t.BackgroundTransparency = 1
+	t.Text = tituloTexto
+	t.TextSize = 15
+	t.Font = Enum.Font.GothamBold
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.Parent = item
+
+	local c = Instance.new("TextLabel")
+	c.Size = UDim2.new(1, 0, 0, 0)
+	c.AutomaticSize = Enum.AutomaticSize.Y
+	c.LayoutOrder = 2
+	c.BackgroundTransparency = 1
+	c.Text = corpoTexto
+	c.TextSize = 12
+	c.TextTransparency = 0.3
+	c.TextWrapped = true
+	c.Font = Enum.Font.Gotham
+	c.TextXAlignment = Enum.TextXAlignment.Left
+	c.TextYAlignment = Enum.TextYAlignment.Top
+	c.Parent = item
+
+	table.insert(registroCartoes, { item = item, stroke = stroke, titulo = t, corpo = c })
+	return item
+end
+
+local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
+	local estado = estadoInicial or false
+
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, 0, 0, 48)
+	item.LayoutOrder = ordem
+	item.BorderSizePixel = 0
+	item.Parent = pai
+	arredondar(item, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = 0.75
+	stroke.Parent = item
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -80, 1, 0)
+	label.Position = UDim2.fromOffset(14, 0)
+	label.BackgroundTransparency = 1
+	label.Text = nomeTexto
+	label.TextSize = 14
+	label.Font = Enum.Font.GothamMedium
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = item
+
+	local trilho = Instance.new("TextButton")
+	trilho.Size = UDim2.fromOffset(46, 24)
+	trilho.Position = UDim2.new(1, -60, 0.5, -12)
+	trilho.Text = ""
+	trilho.AutoButtonColor = false
+	trilho.BorderSizePixel = 0
+	trilho.Parent = item
+	arredondar(trilho, 12)
+
+	local bolinha = Instance.new("Frame")
+	bolinha.Size = UDim2.fromOffset(18, 18)
+	bolinha.Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3)
+	bolinha.BackgroundColor3 = Color3.new(1, 1, 1)
+	bolinha.BorderSizePixel = 0
+	bolinha.Parent = trilho
+	arredondar(bolinha, 9)
+
+	item.MouseEnter:Connect(function()
+		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.3 }):Play()
+	end)
+	item.MouseLeave:Connect(function()
+		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.75 }):Play()
+	end)
+
+	local registro = { item = item, stroke = stroke, label = label, trilho = trilho, estado = function() return estado end }
+	table.insert(registroToggles, registro)
+
+	trilho.MouseButton1Click:Connect(function()
+		estado = not estado
+		local tema = Temas[temaAtualNome]
+		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
+		TweenService:Create(bolinha, tweenInfo, {
+			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
+		}):Play()
+		task.spawn(callback, estado)
+	end)
+
+	-- muda o estado visual do toggle sem chamar o callback
+	local function definir(novo)
+		estado = novo
+		local tema = Temas[temaAtualNome]
+		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
+		TweenService:Create(bolinha, tweenInfo, {
+			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
+		}):Play()
+	end
+
+	return item, definir
+end
+
+local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, callback)
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, 0, 0, 64)
+	item.LayoutOrder = ordem
+	item.BorderSizePixel = 0
+	item.Parent = pai
+	arredondar(item, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = 0.75
+	stroke.Parent = item
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -100, 0, 22)
+	label.Position = UDim2.fromOffset(14, 8)
+	label.BackgroundTransparency = 1
+	label.Text = nomeTexto
+	label.TextSize = 14
+	label.Font = Enum.Font.GothamMedium
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = item
+
+	-- valor em formato de "pílula"
+	local valorLabel = Instance.new("TextLabel")
+	valorLabel.Size = UDim2.fromOffset(72, 22)
+	valorLabel.Position = UDim2.new(1, -86, 0, 8)
+	valorLabel.BackgroundTransparency = 0.8
+	valorLabel.BorderSizePixel = 0
+	valorLabel.Text = valorInicial .. "%"
+	valorLabel.TextSize = 12
+	valorLabel.Font = Enum.Font.GothamBold
+	valorLabel.Parent = item
+	arredondar(valorLabel, 8)
+
+	local trilho = Instance.new("Frame")
+	trilho.Size = UDim2.new(1, -28, 0, 8)
+	trilho.Position = UDim2.fromOffset(14, 44)
+	trilho.BackgroundColor3 = Color3.fromRGB(70, 70, 88)
+	trilho.BorderSizePixel = 0
+	trilho.Parent = item
+	arredondar(trilho, 4)
+
+	local percentualInicial = (valorInicial - minVal) / (maxVal - minVal)
+	local preenchimento = Instance.new("Frame")
+	preenchimento.Size = UDim2.fromScale(percentualInicial, 1)
+	preenchimento.BackgroundColor3 = Color3.fromRGB(147, 112, 219)
+	preenchimento.BorderSizePixel = 0
+	preenchimento.Parent = trilho
+	arredondar(preenchimento, 4)
+
+	local bolinha = Instance.new("Frame")
+	bolinha.Size = UDim2.fromOffset(18, 18)
+	bolinha.Position = UDim2.new(percentualInicial, -9, 0.5, -9)
+	bolinha.BackgroundColor3 = Color3.new(1, 1, 1)
+	bolinha.BorderSizePixel = 0
+	bolinha.ZIndex = 2
+	bolinha.Parent = trilho
+	arredondar(bolinha, 9)
+
+	local strokeBolinha = Instance.new("UIStroke")
+	strokeBolinha.Thickness = 2
+	strokeBolinha.Parent = bolinha
+
+	local arrastando = false
+	local function atualizarSlider(input)
+		local relativeX = input.Position.X - trilho.AbsolutePosition.X
+		local percent = math.clamp(relativeX / trilho.AbsoluteSize.X, 0, 1)
+		local valorAtual = math.floor(minVal + percent * (maxVal - minVal))
+		valorAtual = math.clamp(valorAtual, minVal, maxVal)
+		
+		preenchimento.Size = UDim2.fromScale(percent, 1)
+		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
+		valorLabel.Text = valorAtual .. "%"
+		callback(valorAtual)
+	end
+
+	trilho.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			arrastando = true
+			atualizarSlider(input)
+		end
+	end)
+
+	conectar(UserInputService.InputChanged, function(input)
+		if arrastando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			atualizarSlider(input)
+		end
+	end)
+
+	conectar(UserInputService.InputEnded, function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			arrastando = false
+		end
+	end)
+
+	local registro = {
+		item = item, stroke = stroke, label = label, valorLabel = valorLabel,
+		trilho = trilho, preenchimento = preenchimento, bolinha = bolinha, strokeBolinha = strokeBolinha,
+	}
+	table.insert(registroSliders, registro)
+	return item
+end
+
+----------------------------------------------------------------
+-- CONSOLE DEV
+----------------------------------------------------------------
+local registroBotoes = {}
+local badgeBotaoConsole = nil
+
+local function criarBotao(pai, texto, tamanho, posicao, ordem, destaque)
+	local btn = Instance.new("TextButton")
+	btn.Size = tamanho
+	if posicao then btn.Position = posicao end
+	if ordem then btn.LayoutOrder = ordem end
+	btn.Text = texto
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = destaque and 14 or 11
+	btn.AutoButtonColor = false
+	btn.BorderSizePixel = 0
+	btn.Parent = pai
+	arredondar(btn, destaque and 12 or 8)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = destaque and 1 or 0.6
+	stroke.Parent = btn
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.12), { BackgroundTransparency = 0.15 }):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
+	end)
+
+	table.insert(registroBotoes, { btn = btn, stroke = stroke, destaque = destaque })
+	return btn
+end
+
+local TIPOS_LOG = {
+	erro  = { cor = Color3.fromRGB(235, 87, 87),  tag = "ERRO" },
+	aviso = { cor = Color3.fromRGB(242, 177, 52), tag = "AVISO" },
+	info  = { cor = Color3.fromRGB(100, 170, 255), tag = "INFO" },
+}
+local COR_OK = Color3.fromRGB(80, 200, 120)
+local LARG_CONSOLE = 430
+local ALT_CONSOLE = 320
+local MAX_LOGS = 150
+
+local consoleFrame = Instance.new("Frame")
+consoleFrame.Name = "ConsoleDev"
+consoleFrame.Size = UDim2.fromOffset(LARG_CONSOLE, ALT_CONSOLE)
+consoleFrame.Position = UDim2.new(0.5, -LARG_CONSOLE / 2 + 40, 0.5, -ALT_CONSOLE / 2 + 40)
+consoleFrame.ClipsDescendants = true
+consoleFrame.Visible = false
+consoleFrame.BorderSizePixel = 0
+consoleFrame.ZIndex = 5
+consoleFrame.Parent = gui
+arredondar(consoleFrame, 16)
+
+local consoleGrad = Instance.new("UIGradient")
+consoleGrad.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 195))
+consoleGrad.Rotation = 90
+consoleGrad.Parent = consoleFrame
+
+local consoleBorda = Instance.new("UIStroke")
+consoleBorda.Thickness = 2
+consoleBorda.Transparency = 0.15
+consoleBorda.Parent = consoleFrame
+
+local consoleTopo = Instance.new("Frame")
+consoleTopo.Size = UDim2.new(1, 0, 0, 48)
+consoleTopo.BorderSizePixel = 0
+consoleTopo.Parent = consoleFrame
+arredondar(consoleTopo, 16)
+
+local consoleTopoFill = Instance.new("Frame")
+consoleTopoFill.Size = UDim2.new(1, 0, 0, 16)
+consoleTopoFill.Position = UDim2.new(0, 0, 1, -16)
+consoleTopoFill.BorderSizePixel = 0
+consoleTopoFill.Parent = consoleTopo
+
+local consoleLinha = Instance.new("Frame")
+consoleLinha.Size = UDim2.new(1, 0, 0, 2)
+consoleLinha.Position = UDim2.fromOffset(0, 48)
+consoleLinha.BorderSizePixel = 0
+consoleLinha.Parent = consoleFrame
+
+local consoleLinhaGrad = Instance.new("UIGradient")
+consoleLinhaGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.9),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(1, 0.9),
+})
+consoleLinhaGrad.Parent = consoleLinha
+
+local consoleDot = Instance.new("Frame")
+consoleDot.Size = UDim2.fromOffset(10, 10)
+consoleDot.Position = UDim2.fromOffset(16, 19)
+consoleDot.BackgroundColor3 = COR_OK
+consoleDot.BorderSizePixel = 0
+consoleDot.Parent = consoleTopo
+arredondar(consoleDot, 5)
+
+local consoleTitulo = Instance.new("TextLabel")
+consoleTitulo.Size = UDim2.new(1, -190, 0, 20)
+consoleTitulo.Position = UDim2.fromOffset(34, 7)
+consoleTitulo.BackgroundTransparency = 1
+consoleTitulo.Text = "Console Dev"
+consoleTitulo.TextSize = 16
+consoleTitulo.Font = Enum.Font.GothamBold
+consoleTitulo.TextXAlignment = Enum.TextXAlignment.Left
+consoleTitulo.Parent = consoleTopo
+
+local consoleSub = Instance.new("TextLabel")
+consoleSub.Size = UDim2.new(1, -190, 0, 14)
+consoleSub.Position = UDim2.fromOffset(34, 27)
+consoleSub.BackgroundTransparency = 1
+consoleSub.Text = "0 erros  ·  0 avisos"
+consoleSub.TextSize = 11
+consoleSub.TextTransparency = 0.45
+consoleSub.Font = Enum.Font.Gotham
+consoleSub.TextXAlignment = Enum.TextXAlignment.Left
+consoleSub.Parent = consoleTopo
+
+local consoleFechar = Instance.new("TextButton")
+consoleFechar.Size = UDim2.fromOffset(30, 30)
+consoleFechar.Position = UDim2.new(1, -42, 0.5, -15)
+consoleFechar.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+consoleFechar.Text = "×"
+consoleFechar.TextColor3 = Color3.new(1, 1, 1)
+consoleFechar.TextSize = 22
+consoleFechar.Font = Enum.Font.GothamBold
+consoleFechar.AutoButtonColor = false
+consoleFechar.BorderSizePixel = 0
+consoleFechar.Parent = consoleTopo
+arredondar(consoleFechar, 10)
+
+consoleFechar.MouseEnter:Connect(function()
+	TweenService:Create(consoleFechar, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(235, 80, 80) }):Play()
+end)
+consoleFechar.MouseLeave:Connect(function()
+	TweenService:Create(consoleFechar, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(200, 60, 60) }):Play()
+end)
+
+local consoleLimpar = criarBotao(consoleTopo, "Limpar", UDim2.fromOffset(64, 26), UDim2.new(1, -116, 0.5, -13), nil, false)
+
+-- filtros
+local barraFiltros = Instance.new("Frame")
+barraFiltros.Size = UDim2.new(1, -24, 0, 26)
+barraFiltros.Position = UDim2.fromOffset(12, 58)
+barraFiltros.BackgroundTransparency = 1
+barraFiltros.Parent = consoleFrame
+
+local layoutFiltros = Instance.new("UIListLayout")
+layoutFiltros.FillDirection = Enum.FillDirection.Horizontal
+layoutFiltros.Padding = UDim.new(0, 6)
+layoutFiltros.SortOrder = Enum.SortOrder.LayoutOrder
+layoutFiltros.Parent = barraFiltros
+
+local filtroAtual = "tudo"
+local botoesFiltro = {}
+local entradas = {}
+local contagem = { erro = 0, aviso = 0, info = 0 }
+local ordemLog = 0
+
+local function filtroPermite(tipo)
+	return filtroAtual == "tudo" or filtroAtual == tipo
+end
+
+-- lista de logs
+local consoleLista = Instance.new("ScrollingFrame")
+consoleLista.Size = UDim2.new(1, -24, 1, -142)
+consoleLista.Position = UDim2.fromOffset(12, 94)
+consoleLista.BackgroundTransparency = 1
+consoleLista.BorderSizePixel = 0
+consoleLista.ScrollBarThickness = 3
+consoleLista.ScrollBarImageTransparency = 0.4
+consoleLista.AutomaticCanvasSize = Enum.AutomaticSize.Y
+consoleLista.CanvasSize = UDim2.new(0, 0, 0, 0)
+consoleLista.Parent = consoleFrame
+
+local layoutLista = Instance.new("UIListLayout")
+layoutLista.Padding = UDim.new(0, 6)
+layoutLista.SortOrder = Enum.SortOrder.LayoutOrder
+layoutLista.Parent = consoleLista
+
+local padLista = Instance.new("UIPadding")
+padLista.PaddingRight = UDim.new(0, 6)
+padLista.PaddingBottom = UDim.new(0, 6)
+padLista.Parent = consoleLista
+
+local consoleVazio = Instance.new("TextLabel")
+consoleVazio.AnchorPoint = Vector2.new(0.5, 0.5)
+consoleVazio.Size = UDim2.new(1, -40, 0, 40)
+consoleVazio.Position = UDim2.new(0.5, 0, 0.62, 0)
+consoleVazio.BackgroundTransparency = 1
+consoleVazio.Text = "✓ Nenhum erro por aqui"
+consoleVazio.TextSize = 14
+consoleVazio.TextTransparency = 0.45
+consoleVazio.Font = Enum.Font.GothamMedium
+consoleVazio.Parent = consoleFrame
+
+-- campo de comandos
+local consoleInputFrame = Instance.new("Frame")
+consoleInputFrame.Size = UDim2.new(1, -24, 0, 32)
+consoleInputFrame.Position = UDim2.new(0, 12, 1, -42)
+consoleInputFrame.BorderSizePixel = 0
+consoleInputFrame.Parent = consoleFrame
+arredondar(consoleInputFrame, 10)
+
+local consoleInputStroke = Instance.new("UIStroke")
+consoleInputStroke.Thickness = 1
+consoleInputStroke.Transparency = 0.5
+consoleInputStroke.Parent = consoleInputFrame
+
+local consolePrompt = Instance.new("TextLabel")
+consolePrompt.Size = UDim2.new(0, 16, 1, 0)
+consolePrompt.Position = UDim2.fromOffset(10, 0)
+consolePrompt.BackgroundTransparency = 1
+consolePrompt.Text = ">"
+consolePrompt.TextSize = 14
+consolePrompt.Font = Enum.Font.GothamBold
+consolePrompt.Parent = consoleInputFrame
+
+local consoleInput = Instance.new("TextBox")
+consoleInput.Size = UDim2.new(1, -38, 1, 0)
+consoleInput.Position = UDim2.fromOffset(28, 0)
+consoleInput.BackgroundTransparency = 1
+consoleInput.Text = ""
+consoleInput.PlaceholderText = "digite um comando: Delete ou Sair"
+consoleInput.ClearTextOnFocus = false
+consoleInput.TextXAlignment = Enum.TextXAlignment.Left
+consoleInput.TextSize = 12
+consoleInput.Font = Enum.Font.Code
+consoleInput.Parent = consoleInputFrame
+
+local function atualizarFiltros()
+	local tema = Temas[temaAtualNome]
+	for chave, btn in pairs(botoesFiltro) do
+		local sel = (chave == filtroAtual)
+		TweenService:Create(btn, TweenInfo.new(0.15), {
+			BackgroundColor3 = sel and tema.on or tema.item,
+			TextColor3 = sel and Color3.new(1, 1, 1) or tema.texto,
+		}):Play()
+	end
+end
+
+local function atualizarVazio()
+	local algum = false
+	for _, e in ipairs(entradas) do
+		if e.row.Visible then algum = true break end
+	end
+	consoleVazio.Visible = not algum
+	consoleVazio.Text = (filtroAtual == "tudo") and "✓ Nenhum erro por aqui" or "Nada neste filtro"
+end
+
+local function aplicarFiltro()
+	for _, e in ipairs(entradas) do
+		e.row.Visible = filtroPermite(e.tipo)
+	end
+	atualizarFiltros()
+	atualizarVazio()
+end
+
+for i, def in ipairs({ { "tudo", "Tudo" }, { "erro", "Erros" }, { "aviso", "Avisos" } }) do
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.fromOffset(84, 26)
+	b.LayoutOrder = i
+	b.Text = def[2]
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 11
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	b.Parent = barraFiltros
+	arredondar(b, 8)
+	b.MouseButton1Click:Connect(function()
+		filtroAtual = def[1]
+		aplicarFiltro()
+	end)
+	botoesFiltro[def[1]] = b
+end
+
+local function atualizarContadores()
+	consoleSub.Text = contagem.erro .. (contagem.erro == 1 and " erro" or " erros") .. "  ·  " .. contagem.aviso .. (contagem.aviso == 1 and " aviso" or " avisos")
+	consoleDot.BackgroundColor3 = contagem.erro > 0 and TIPOS_LOG.erro.cor or COR_OK
+	if badgeBotaoConsole then
+		badgeBotaoConsole.Visible = contagem.erro > 0
+		badgeBotaoConsole.Text = tostring(math.min(contagem.erro, 99))
+	end
+end
+
+local function rolarParaFim()
+	task.defer(function()
+		task.wait()
+		consoleLista.CanvasPosition = Vector2.new(0, math.max(0, consoleLista.AbsoluteCanvasSize.Y - consoleLista.AbsoluteWindowSize.Y))
+	end)
+end
+
+local emLog = false -- evita loop infinito caso o próprio console dê erro
+local function logar(tipo, msg)
+	local cfg = TIPOS_LOG[tipo]
+	if not cfg or emLog then return end
+	emLog = true
+
+	pcall(function()
+		msg = tostring(msg)
+		if #msg > 600 then msg = string.sub(msg, 1, 600) .. "..." end
+
+		contagem[tipo] = contagem[tipo] + 1
+		ordemLog = ordemLog + 1
+
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 0)
+		row.AutomaticSize = Enum.AutomaticSize.Y
+		row.LayoutOrder = ordemLog
+		row.BackgroundColor3 = cfg.cor
+		row.BackgroundTransparency = 0.85
+		row.BorderSizePixel = 0
+		row.Visible = filtroPermite(tipo)
+		row.Parent = consoleLista
+		arredondar(row, 8)
+
+		local st = Instance.new("UIStroke")
+		st.Color = cfg.cor
+		st.Thickness = 1
+		st.Transparency = 0.6
+		st.Parent = row
+
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0, 8)
+		pad.PaddingBottom = UDim.new(0, 8)
+		pad.PaddingLeft = UDim.new(0, 10)
+		pad.PaddingRight = UDim.new(0, 10)
+		pad.Parent = row
+
+		local lay = Instance.new("UIListLayout")
+		lay.Padding = UDim.new(0, 3)
+		lay.SortOrder = Enum.SortOrder.LayoutOrder
+		lay.Parent = row
+
+		local cab = Instance.new("TextLabel")
+		cab.Size = UDim2.new(1, 0, 0, 14)
+		cab.LayoutOrder = 1
+		cab.BackgroundTransparency = 1
+		cab.Text = cfg.tag .. "  •  " .. os.date("%H:%M:%S")
+		cab.TextColor3 = cfg.cor
+		cab.TextSize = 10
+		cab.Font = Enum.Font.GothamBold
+		cab.TextXAlignment = Enum.TextXAlignment.Left
+		cab.Parent = row
+
+		local corpo = Instance.new("TextLabel")
+		corpo.Size = UDim2.new(1, 0, 0, 0)
+		corpo.AutomaticSize = Enum.AutomaticSize.Y
+		corpo.LayoutOrder = 2
+		corpo.BackgroundTransparency = 1
+		corpo.Text = msg
+		corpo.TextColor3 = Temas[temaAtualNome].texto
+		corpo.TextSize = 12
+		corpo.Font = Enum.Font.Code
+		corpo.TextWrapped = true
+		corpo.TextXAlignment = Enum.TextXAlignment.Left
+		corpo.TextYAlignment = Enum.TextYAlignment.Top
+		corpo.Parent = row
+
+		table.insert(entradas, { row = row, tipo = tipo, msg = corpo })
+		while #entradas > MAX_LOGS do
+			local velho = table.remove(entradas, 1)
+			velho.row:Destroy()
+		end
+
+		atualizarContadores()
+		atualizarVazio()
+		rolarParaFim()
+	end)
+
+	emLog = false
+end
+
+consoleLimpar.MouseButton1Click:Connect(function()
+	for _, e in ipairs(entradas) do e.row:Destroy() end
+	table.clear(entradas)
+	contagem.erro, contagem.aviso, contagem.info = 0, 0, 0
+	atualizarContadores()
+	atualizarVazio()
+end)
+
+-- histórico de erros/avisos que já aconteceram antes do menu carregar
+pcall(function()
+	local hist = LogService:GetLogHistory()
+	for i = math.max(1, #hist - 60), #hist do
+		local h = hist[i]
+		if h.messageType == Enum.MessageType.MessageError then
+			logar("erro", h.message)
+		elseif h.messageType == Enum.MessageType.MessageWarning then
+			logar("aviso", h.message)
+		end
+	end
+end)
+
+-- captura erros e avisos novos
+conectar(LogService.MessageOut, function(mensagem, tipoMsg)
+	if tipoMsg == Enum.MessageType.MessageError then
+		logar("erro", mensagem)
+	elseif tipoMsg == Enum.MessageType.MessageWarning then
+		logar("aviso", mensagem)
+	end
+end)
+
+logar("info", "Console Dev iniciado. Erros e avisos aparecem aqui.")
+
+-- abrir/fechar console
+local consoleAberto = false
+local function definirConsoleAberto(valor)
+	consoleAberto = valor
+	if valor then
+		consoleFrame.Size = UDim2.fromOffset(LARG_CONSOLE, 0)
+		consoleFrame.Visible = true
+		TweenService:Create(consoleFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = UDim2.fromOffset(LARG_CONSOLE, ALT_CONSOLE) }):Play()
+		rolarParaFim()
+	else
+		local t = TweenService:Create(consoleFrame, TweenInfo.new(0.15), { Size = UDim2.fromOffset(LARG_CONSOLE, 0) })
+		t:Play()
+		t.Completed:Wait()
+		if not consoleAberto then consoleFrame.Visible = false end
+	end
+end
+
+consoleFechar.MouseButton1Click:Connect(function() definirConsoleAberto(false) end)
+
+-- arrastar console
+local consoleArrastando, consoleInicioMouse, consoleInicioPos
+consoleTopo.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		consoleArrastando = true
+		consoleInicioMouse = input.Position
+		consoleInicioPos = consoleFrame.Position
+	end
+end)
+
+conectar(UserInputService.InputChanged, function(input)
+	if consoleArrastando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - consoleInicioMouse
+		consoleFrame.Position = UDim2.new(consoleInicioPos.X.Scale, consoleInicioPos.X.Offset + delta.X, consoleInicioPos.Y.Scale, consoleInicioPos.Y.Offset + delta.Y)
+	end
+end)
+
+conectar(UserInputService.InputEnded, function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		consoleArrastando = false
+	end
+end)
+
+----------------------------------------------------------------
+-- SISTEMA DE VELOCIDADE (120)
+----------------------------------------------------------------
+local VELOCIDADE_ATIVA = 120
+local velocidadeAtiva = false
+local velocidadePadrao = 16
+
+local function humanoidAtual()
+	return player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+end
+
+-- mantém a velocidade (inclusive depois de respawn ou se o jogo tentar resetar)
+conectar(RunService.Heartbeat, function()
+	if not velocidadeAtiva then return end
+	local hum = humanoidAtual()
+	if hum and hum.WalkSpeed ~= VELOCIDADE_ATIVA then
+		hum.WalkSpeed = VELOCIDADE_ATIVA
+	end
+end)
+
+----------------------------------------------------------------
+-- ABA INÍCIO / FULL
+----------------------------------------------------------------
+-- Cronômetro: tempo dentro do servidor (min : seg . ms)
+local tempoEntrada = os.clock()
+do
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, 0, 0, 62)
+	item.LayoutOrder = 3
+	item.BorderSizePixel = 0
+	item.Parent = paginaInicio
+	arredondar(item, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+	stroke.Parent = item
+
+	local tituloTempo = Instance.new("TextLabel")
+	tituloTempo.Size = UDim2.new(1, -28, 0, 14)
+	tituloTempo.Position = UDim2.fromOffset(14, 8)
+	tituloTempo.BackgroundTransparency = 1
+	tituloTempo.Text = "TEMPO NO SERVIDOR"
+	tituloTempo.TextSize = 10
+	tituloTempo.Font = Enum.Font.GothamBold
+	tituloTempo.TextXAlignment = Enum.TextXAlignment.Left
+	tituloTempo.Parent = item
+
+	local tempoLabel = Instance.new("TextLabel")
+	tempoLabel.Size = UDim2.new(1, -28, 0, 22)
+	tempoLabel.Position = UDim2.fromOffset(14, 22)
+	tempoLabel.BackgroundTransparency = 1
+	tempoLabel.Text = "00:00.000"
+	tempoLabel.TextSize = 18
+	tempoLabel.Font = Enum.Font.GothamBold
+	tempoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	tempoLabel.Parent = item
+
+	local subTempo = Instance.new("TextLabel")
+	subTempo.Size = UDim2.new(1, -28, 0, 12)
+	subTempo.Position = UDim2.fromOffset(14, 45)
+	subTempo.BackgroundTransparency = 1
+	subTempo.Text = "minutos  :  segundos  .  milésimos"
+	subTempo.TextSize = 9
+	subTempo.TextTransparency = 0.35
+	subTempo.Font = Enum.Font.Gotham
+	subTempo.TextXAlignment = Enum.TextXAlignment.Left
+	subTempo.Parent = item
+
+	table.insert(registroCartoes, { item = item, stroke = stroke, titulo = tituloTempo, corpo = subTempo })
+	table.insert(registroTitulos, tempoLabel)
+
+	-- só atualiza quando a janela está aberta na aba Início (não gasta performance à toa)
+	conectar(RunService.RenderStepped, function()
+		if not janela.Visible or not paginaInicio.Visible then return end
+		local totalMs = math.floor((os.clock() - tempoEntrada) * 1000)
+		local minutos = math.floor(totalMs / 60000)
+		local segundos = math.floor(totalMs / 1000) % 60
+		local milesimos = totalMs % 1000
+		tempoLabel.Text = string.format("%02d:%02d.%03d", minutos, segundos, milesimos)
+	end)
+end
+
+-- Informação do jogo atual
+do
+	local item = Instance.new("Frame")
+	item.Size = UDim2.new(1, 0, 0, 62)
+	item.LayoutOrder = 4
+	item.BorderSizePixel = 0
+	item.Parent = paginaInicio
+	arredondar(item, 12)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+	stroke.Parent = item
+
+	local tituloJogo = Instance.new("TextLabel")
+	tituloJogo.Size = UDim2.new(1, -28, 0, 14)
+	tituloJogo.Position = UDim2.fromOffset(14, 8)
+	tituloJogo.BackgroundTransparency = 1
+	tituloJogo.Text = "JOGO ATUAL"
+	tituloJogo.TextSize = 10
+	tituloJogo.Font = Enum.Font.GothamBold
+	tituloJogo.TextXAlignment = Enum.TextXAlignment.Left
+	tituloJogo.Parent = item
+
+	local nomeJogoLabel = Instance.new("TextLabel")
+	nomeJogoLabel.Size = UDim2.new(1, -28, 0, 22)
+	nomeJogoLabel.Position = UDim2.fromOffset(14, 22)
+	nomeJogoLabel.BackgroundTransparency = 1
+	nomeJogoLabel.Text = game.Name
+	nomeJogoLabel.TextSize = 16
+	nomeJogoLabel.Font = Enum.Font.GothamBold
+	nomeJogoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nomeJogoLabel.TextWrapped = false
+	nomeJogoLabel.TextTruncate = Enum.TextTruncate.AtEnd
+	nomeJogoLabel.Parent = item
+
+	local subJogo = Instance.new("TextLabel")
+	subJogo.Size = UDim2.new(1, -28, 0, 12)
+	subJogo.Position = UDim2.fromOffset(14, 45)
+	subJogo.BackgroundTransparency = 1
+	subJogo.Text = "ID do lugar: " .. tostring(game.PlaceId)
+	subJogo.TextSize = 9
+	subJogo.TextTransparency = 0.35
+	subJogo.Font = Enum.Font.Gotham
+	subJogo.TextXAlignment = Enum.TextXAlignment.Left
+	subJogo.Parent = item
+
+	table.insert(registroCartoes, { item = item, stroke = stroke, titulo = tituloJogo, corpo = subJogo })
+	table.insert(registroTitulos, nomeJogoLabel) -- pega a cor do tema
+
+	task.spawn(function()
+		local ok, info = pcall(function()
+			return MarketplaceService:GetProductInfo(game.PlaceId)
+		end)
+		if ok and info and info.Name then
+			nomeJogoLabel.Text = info.Name
+		end
+	end)
+end
+
+criarCartao(paginaInicio, "Bem-vindo, " .. player.DisplayName, "Use as abas acima para acessar as funções. Na aba Configs você troca a cor do menu e ativa o modo leve.", 1)
+criarCartao(paginaInicio, "Dica", "Arraste o topo da janela para mover o menu e o botão ⚙ para reposicioná-lo na tela.", 2)
+
+criarTitulo(paginaFull, "Velocidade", 0)
+
+criarToggle(paginaFull, "Velocidade (120)", 1, function(on)
+	velocidadeAtiva = on
+	local hum = humanoidAtual()
+	if on then
+		if hum and hum.WalkSpeed ~= VELOCIDADE_ATIVA then
+			velocidadePadrao = hum.WalkSpeed
+		end
+		if hum then hum.WalkSpeed = VELOCIDADE_ATIVA end
+		logar("info", "Velocidade ativada: " .. VELOCIDADE_ATIVA)
+	else
+		if hum then hum.WalkSpeed = velocidadePadrao end
+		logar("info", "Velocidade desativada (voltou para " .. velocidadePadrao .. ")")
+	end
+end, false)
+
+----------------------------------------------------------------
+-- PC PART: X TTK TWEEN (tween pra frente + anti-stun só durante o tween)
+----------------------------------------------------------------
+local TTK_DURACAO = 2
+local TTK_VELOCIDADE = 30
+local ttkToken = 0
+local ttkTween = nil
+
+local function removerAntiMover(char)
+	local pasta = char and char:FindFirstChild("AntiMover")
+	if pasta then pasta:Destroy() end
+end
+
+local function pararXTTK()
+	ttkToken = ttkToken + 1
+	if ttkTween then
+		ttkTween:Cancel()
+		ttkTween = nil
+	end
+	removerAntiMover(player.Character)
+end
+
+local function iniciarXTTK()
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		logar("aviso", "X TTK TWEEN: personagem não encontrado.")
+		return
+	end
+
+	pararXTTK() -- cancela qualquer execução anterior
+	ttkToken = ttkToken + 1
+	local meuToken = ttkToken
+
+	-- anti-stun: só existe durante o tween
+	if not char:FindFirstChild("AntiMover") then
+		local pasta = Instance.new("Folder")
+		pasta.Name = "AntiMover"
+		pasta.Parent = char
+	end
+
+	-- direção: pra frente (horizontal)
+	local olhar = root.CFrame.LookVector
+	local direcao = Vector3.new(olhar.X, 0, olhar.Z)
+	if direcao.Magnitude < 0.01 then direcao = Vector3.new(0, 0, -1) end
+	direcao = direcao.Unit
+
+	local destino = root.CFrame + direcao * (TTK_VELOCIDADE * TTK_DURACAO)
+	local tween = TweenService:Create(root, TweenInfo.new(TTK_DURACAO, Enum.EasingStyle.Linear), { CFrame = destino })
+	ttkTween = tween
+	tween:Play()
+	logar("info", "X TTK TWEEN iniciado (" .. TTK_DURACAO .. "s, velocidade " .. TTK_VELOCIDADE .. ").")
+
+	task.spawn(function()
+		tween.Completed:Wait()
+		if ttkToken ~= meuToken then return end -- foi cancelado ou reiniciado
+		ttkTween = nil
+		removerAntiMover(player.Character) -- depois dos 2s o anti-stun para
+		logar("info", "X TTK TWEEN finalizado. Anti-stun desligado.")
+	end)
+end
+
+criarTitulo(paginaFull, "PC Part", 2)
+
+local ttkHabilitado = false
+
+criarToggle(paginaFull, "X TTK TWEEN", 3, function(on)
+	ttkHabilitado = on
+	if on then
+		logar("info", "X TTK TWEEN ativado: aperte X para usar.")
+	else
+		pararXTTK() -- desligado: cancela o tween e o anti-stun
+		logar("info", "X TTK TWEEN desativado.")
+	end
+end, false)
+
+-- o tween e o anti-stun só acontecem quando aperta X (com o toggle ligado)
+conectar(UserInputService.InputBegan, function(input, processado)
+	if processado then return end
+	if input.KeyCode ~= Enum.KeyCode.X then return end
+	if not ttkHabilitado or ttkTween then return end
+	iniciarXTTK()
+end)
+
+----------------------------------------------------------------
+-- AIR FLASHSTEP (aperte R: cria uma parte na posição do mouse, limitada pelo alcance)
+----------------------------------------------------------------
+local AIR_FLASH_ALCANCE = 200
+local airFlashHabilitado = false
+local mouse = player:GetMouse()
+
+criarTitulo(paginaFull, "Air FlashStep", 4)
+
+criarToggle(paginaFull, "Air FlashStep (R)", 5, function(on)
+	airFlashHabilitado = on
+	if on then
+		logar("info", "Air FlashStep ativado: aperte R para usar.")
+	else
+		logar("info", "Air FlashStep desativado.")
+	end
+end, false)
+
+conectar(UserInputService.InputBegan, function(input, processado)
+	if processado then return end
+	if input.KeyCode ~= Enum.KeyCode.R then return end
+	if not airFlashHabilitado then return end
+
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local mouseHit = mouse.Hit.Position
+	local offset = mouseHit - root.Position
+	local distancia = offset.Magnitude
+	local alvo = mouseHit
+
+	if distancia > AIR_FLASH_ALCANCE and distancia > 0 then
+		alvo = root.Position + offset.Unit * AIR_FLASH_ALCANCE
+	end
+
+	local p = Instance.new("Part")
+	p.Name = "AirFlashStepPart"
+	p.Anchored = true
+	p.CanCollide = false
+	p.Shape = Enum.PartType.Ball
+	p.Size = Vector3.new(4, 4, 4)
+	p.CFrame = CFrame.new(alvo + Vector3.new(0, 1, 0))
+	p.Transparency = 0
+	p.Material = Enum.Material.Neon
+	p.Color = Color3.fromRGB(255, 255, 0)
+	p.Parent = workspace
+
+	task.delay(1, function()
+		if p then p:Destroy() end
+	end)
+end)
+
+----------------------------------------------------------------
+-- KILL AURA (equipa a arma, escolhe o alvo mais próximo e ataca)
+----------------------------------------------------------------
+local AURA_ALCANCE = 50          -- distância máxima do alvo (studs)
+local AURA_INTERVALO = 0.1       -- segundos entre cada rodada de ataques
+local AURA_ATAQUES_POR_TICK = 3  -- quantos ataques por rodada
+local AURA_TEAM_CHECK = true     -- ignora jogadores do seu time
+
+local killAuraAtivo = false
+local ultimoTickAura = 0
+
+-- ataque: ativa a Tool que você já tem na mão (M1)
+local function atacar()
+	local char = player.Character
+	local tool = char and char:FindFirstChildOfClass("Tool")
+	if tool then
+		pcall(function() tool:Activate() end)
+	end
+end
+
+local function vivo(modelo)
+	local hum = modelo:FindFirstChildOfClass("Humanoid")
+	return hum ~= nil and hum.Health > 0
+end
+
+local function buscarAlvoAura(myRoot)
+	local alvo = nil
+	local menorDist = AURA_ALCANCE
+
+	-- jogadores
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and vivo(p.Character) then
+			local inimigo = true
+			if AURA_TEAM_CHECK and p.Team and player.Team and p.Team == player.Team then
+				inimigo = false
+			end
+			if inimigo then
+				local d = (myRoot.Position - p.Character.HumanoidRootPart.Position).Magnitude
+				if d < menorDist then
+					menorDist = d
+					alvo = p.Character
+				end
+			end
+		end
+	end
+
+	-- NPCs
+	local function varrer(pasta)
+		if not pasta then return end
+		for _, v in ipairs(pasta:GetChildren()) do
+			if v:IsA("Model") and v ~= player.Character and v:FindFirstChild("HumanoidRootPart")
+				and vivo(v) and not Players:GetPlayerFromCharacter(v) then
+				local d = (myRoot.Position - v.HumanoidRootPart.Position).Magnitude
+				if d < menorDist then
+					menorDist = d
+					alvo = v
+				end
+			end
+		end
+	end
+	varrer(workspace)
+	varrer(workspace:FindFirstChild("Enemies"))
+
+	return alvo
+end
+
+conectar(RunService.Heartbeat, function()
+	if not killAuraAtivo then return end
+
+	local agora = os.clock()
+	if agora - ultimoTickAura < AURA_INTERVALO then return end
+	ultimoTickAura = agora
+
+	local char = player.Character
+	local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return end
+
+	local alvo = buscarAlvoAura(myRoot)
+	if not alvo then return end
+	local alvoRoot = alvo:FindFirstChild("HumanoidRootPart")
+	if not alvoRoot then return end
+
+	for _ = 1, AURA_ATAQUES_POR_TICK do
+		atacar()
+	end
+
+	-- extensor de hitbox (só funciona se o executor tiver firetouchinterest)
+	if firetouchinterest then
+		pcall(function()
+			firetouchinterest(myRoot, alvoRoot, 0)
+			firetouchinterest(myRoot, alvoRoot, 1)
+		end)
+	end
+end)
+
+criarTitulo(paginaFull, "Combate", 10)
+
+criarToggle(paginaFull, "Kill Aura", 11, function(on)
+	killAuraAtivo = on
+	if on then
+		logar("info", "Kill Aura ativado (alcance " .. AURA_ALCANCE .. ").")
+	else
+		logar("info", "Kill Aura desativado.")
+	end
+end, false)
+
+----------------------------------------------------------------
+-- ESP DE FRUTAS
+----------------------------------------------------------------
+local espFruitAtivo = false
+local espFrutas = {}          -- [handle] = pasta com Highlight + texto
+local espFruitConexoes = {}
+
+local espFruitFolder = Instance.new("Folder")
+espFruitFolder.Name = "ESPFruit"
+espFruitFolder.Parent = gui
+
+local function ehFruta(obj)
+	if not obj:IsA("Tool") then return false end
+	return obj.Name == "Dough Fruit" or obj.ToolTip == "Blox Fruit" or string.find(obj.Name, "Fruit") ~= nil
+end
+
+local function removerESPFruta(handle)
+	local pasta = espFrutas[handle]
+	if pasta then pasta:Destroy() end
+	espFrutas[handle] = nil
+end
+
+local function criarESPFruta(tool)
+	local handle = tool:FindFirstChild("Handle")
+	if not handle or not handle:IsA("BasePart") or espFrutas[handle] then return end
+
+	local pasta = Instance.new("Folder")
+	pasta.Name = "_FRUIT_" .. tool.Name
+	pasta.Parent = espFruitFolder
+
+	-- aura vermelha
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "FruitHighlight"
+	highlight.Adornee = handle
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.FillColor = Color3.fromRGB(255, 0, 0)
+	highlight.FillTransparency = 0.5
+	highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
+	highlight.OutlineTransparency = 0
+	highlight.Parent = pasta
+
+	-- texto
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "FruitInfo"
+	bb.Adornee = handle
+	bb.Size = UDim2.new(0, 100, 0, 30)
+	bb.StudsOffset = Vector3.new(0, 2, 0)
+	bb.AlwaysOnTop = true
+	bb.MaxDistance = 3000
+	bb.Parent = pasta
+
+	local txt = Instance.new("TextLabel")
+	txt.Name = "FruitText"
+	txt.Size = UDim2.new(1, 0, 1, 0)
+	txt.BackgroundTransparency = 1
+	txt.TextStrokeTransparency = 0
+	txt.TextStrokeColor3 = Color3.new(0, 0, 0)
+	txt.TextColor3 = Color3.fromRGB(255, 50, 50)
+	txt.Font = Enum.Font.GothamBold
+	txt.TextSize = 18
+	txt.Text = "Fruit"
+	txt.RichText = false
+	txt.Parent = bb
+
+	espFrutas[handle] = pasta
+
+	-- some quando a fruta sai do workspace (pegaram no inventário, sumiu, etc.)
+	handle.AncestryChanged:Connect(function()
+		if not handle:IsDescendantOf(workspace) then
+			removerESPFruta(handle)
+		end
+	end)
+end
+
+local function desativarESPFruit()
+	espFruitAtivo = false
+	for _, c in pairs(espFruitConexoes) do
+		pcall(function() c:Disconnect() end)
+	end
+	table.clear(espFruitConexoes)
+	for handle in pairs(espFrutas) do
+		removerESPFruta(handle)
+	end
+end
+
+local function ativarESPFruit()
+	if espFruitAtivo then return end
+	espFruitAtivo = true
+
+	-- varre o workspace uma vez
+	task.spawn(function()
+		local total = 0
+		for _, v in ipairs(workspace:GetDescendants()) do
+			if not espFruitAtivo then return end
+			if ehFruta(v) then criarESPFruta(v) end
+			total = total + 1
+			if total % 500 == 0 then task.wait() end
+		end
+	end)
+
+	-- frutas que aparecerem depois
+	espFruitConexoes.adicionada = conectar(workspace.DescendantAdded, function(d)
+		if not espFruitAtivo then return end
+		if d:IsA("Tool") and ehFruta(d) then
+			task.spawn(function()
+				d:WaitForChild("Handle", 3)
+				if espFruitAtivo then criarESPFruta(d) end
+			end)
+		elseif d.Name == "Handle" and d.Parent and ehFruta(d.Parent) then
+			criarESPFruta(d.Parent)
+		end
+	end)
+end
+
+criarTitulo(paginaFull, "ESP", 6)
+
+criarToggle(paginaFull, "ESP Fruit", 7, function(on)
+	if on then
+		ativarESPFruit()
+		logar("info", "ESP Fruit ativado.")
+	else
+		desativarESPFruit()
+		logar("info", "ESP Fruit desativado.")
+	end
+end, false)
+
+----------------------------------------------------------------
+-- ANTI LAVA / BLOQUEIO DE DANO
+----------------------------------------------------------------
+local ANTILAVA_PALAVRAS = {
+	"lava", "magma", "acid", "water", "damage", "burn", "kill", "death", "hurt",
+	"void", "spike", "fire", "flame", "trap", "laser",
+}
+
+local antiLavaAtivo = false
+local antiLavaConexao = nil
+local antiLavaContagem = 0
+local antiLavaOriginais = setmetatable({}, { __mode = "k" }) -- [parte] = { CanTouch, Material, Name }
+
+local function ehParteDeDano(part)
+	local nome = string.lower(part.Name)
+	local nomePai = part.Parent and string.lower(part.Parent.Name) or ""
+
+	-- palavras-chave no nome da parte ou do pai (ignora "safe" e "spawn")
+	if not string.find(nome, "safe") and not string.find(nome, "spawn") then
+		for _, kw in ipairs(ANTILAVA_PALAVRAS) do
+			if string.find(nome, kw, 1, true) or string.find(nomePai, kw, 1, true) then
+				return true
+			end
+		end
+	end
+
+	if part.Material == Enum.Material.CrackedLava or part.Material == Enum.Material.Water then
+		return true
+	end
+
+	-- texturas / decals com nome de perigo
+	for _, filho in ipairs(part:GetChildren()) do
+		if filho:IsA("Texture") or filho:IsA("Decal") then
+			local nomeTex = string.lower(filho.Name)
+			for _, kw in ipairs(ANTILAVA_PALAVRAS) do
+				if string.find(nomeTex, kw, 1, true) then
+					return true
+				end
+			end
+		end
+	end
+
+	return false
+end
+
+local function neutralizarDano(part)
+	if not antiLavaAtivo then return end
+	if not part:IsA("BasePart") or part:IsA("Terrain") or antiLavaOriginais[part] then return end
+
+	-- não mexe em personagens / NPCs
+	local modelo = part:FindFirstAncestorOfClass("Model")
+	if modelo and modelo:FindFirstChildOfClass("Humanoid") then return end
+
+	if not ehParteDeDano(part) then return end
+
+	antiLavaOriginais[part] = { CanTouch = part.CanTouch, Material = part.Material, Name = part.Name }
+	antiLavaContagem = antiLavaContagem + 1
+	pcall(function()
+		part.CanTouch = false
+		part.Material = Enum.Material.Plastic -- evita checagens de FloorMaterial
+		part.Name = "SafeZone_Bypassed"       -- evita checagens por nome
+	end)
+end
+
+local function desativarAntiLava()
+	antiLavaAtivo = false
+	if antiLavaConexao then
+		pcall(function() antiLavaConexao:Disconnect() end)
+		antiLavaConexao = nil
+	end
+	-- restaura tudo como estava
+	for part, orig in pairs(antiLavaOriginais) do
+		if part.Parent then
+			pcall(function()
+				part.CanTouch = orig.CanTouch
+				part.Material = orig.Material
+				part.Name = orig.Name
+			end)
+		end
+		antiLavaOriginais[part] = nil
+	end
+	antiLavaContagem = 0
+end
+
+local function ativarAntiLava()
+	if antiLavaAtivo then return end
+	antiLavaAtivo = true
+	antiLavaContagem = 0
+
+	-- varre o workspace em lotes
+	task.spawn(function()
+		local total = 0
+		for _, d in ipairs(workspace:GetDescendants()) do
+			if not antiLavaAtivo then return end
+			neutralizarDano(d)
+			total = total + 1
+			if total % 500 == 0 then task.wait() end
+		end
+		logar("info", "Anti Lava: " .. antiLavaContagem .. " partes de dano neutralizadas.")
+	end)
+
+	-- partes que aparecerem depois
+	antiLavaConexao = conectar(workspace.DescendantAdded, neutralizarDano)
+end
+
+criarTitulo(paginaFull, "Proteção", 8)
+
+criarToggle(paginaFull, "Anti Lava / Dano", 9, function(on)
+	if on then
+		ativarAntiLava()
+		logar("info", "Anti Lava ativado.")
+	else
+		desativarAntiLava()
+		logar("info", "Anti Lava desativado (partes restauradas).")
+	end
+end, false)
+
+----------------------------------------------------------------
+-- ABA TREINO
+----------------------------------------------------------------
+criarTitulo(paginaTreino, "Box Soru", 0)
+
+criarToggle(paginaTreino, "Box Soru Treino air", 1, function(estado)
+	boxSoruAtivo = estado
+	atualizarSistemaBoxSoru()
+end, false)
+
+criarSlider(paginaTreino, "Tamanho do Torso", 2, 10, 20000, 10, function(novoValor)
+	boxSoruPorcentagem = novoValor
+	if not boxSoruAtivo then return end
+	local agora = os.clock()
+	if agora - ultimoUpdateBoxSoru > 0.2 then
+		ultimoUpdateBoxSoru = agora
+		atualizarTamanhosGlobais()
+	else
+		-- garante que o valor final do slider seja aplicado
+		task.delay(0.25, function()
+			if boxSoruAtivo and boxSoruPorcentagem == novoValor then
+				atualizarTamanhosGlobais()
+			end
+		end)
+	end
+end)
+
+criarTitulo(paginaTreino, "Movimento", 3)
+
+criarToggle(paginaTreino, "Pulo Alto", 4, function(on)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.UseJumpPower = true
+		hum.JumpPower = on and 90 or 50
+	end
+end, false)
+
+----------------------------------------------------------------
+-- ABA CONFIGS: GRADE DE CORES
+----------------------------------------------------------------
+criarTitulo(paginaConfigs, "Cor do menu", 0)
+
+local grade = Instance.new("Frame")
+grade.Size = UDim2.new(1, 0, 0, 0)
+grade.AutomaticSize = Enum.AutomaticSize.Y
+grade.LayoutOrder = 1
+grade.BackgroundTransparency = 1
+grade.Parent = paginaConfigs
+
+local layoutGrade = Instance.new("UIGridLayout")
+layoutGrade.CellSize = UDim2.fromOffset(72, 56)
+layoutGrade.CellPadding = UDim2.fromOffset(8, 8)
+layoutGrade.SortOrder = Enum.SortOrder.LayoutOrder
+layoutGrade.Parent = grade
+
+local swatches = {}
+local ordemTema = 0
+
+local function aplicarTema(nomeTema, instantaneo)
+	local tema = Temas[nomeTema]
+	if not tema then return end
+	temaAtualNome = nomeTema
+
+	local ti = instantaneo and TweenInfo.new(0) or TweenInfo.new(0.25)
+
+	TweenService:Create(janela, ti, { BackgroundColor3 = tema.fundo }):Play()
+	TweenService:Create(topo, ti, { BackgroundColor3 = tema.topo }):Play()
+	TweenService:Create(topoFill, ti, { BackgroundColor3 = tema.topo }):Play()
+	TweenService:Create(linhaTopo, ti, { BackgroundColor3 = tema.on }):Play()
+	TweenService:Create(borda, ti, { Color = tema.on }):Play()
+	TweenService:Create(titulo, ti, { TextColor3 = tema.texto }):Play()
+	TweenService:Create(subtitulo, ti, { TextColor3 = tema.texto }):Play()
+	TweenService:Create(botaoAbrir, ti, { BackgroundColor3 = tema.topo }):Play()
+	TweenService:Create(bordaBotao, ti, { Color = tema.on }):Play()
+
+	for _, l in ipairs(registroTitulos) do
+		TweenService:Create(l, ti, { TextColor3 = tema.on }):Play()
+	end
+
+	for _, reg in ipairs(registroCartoes) do
+		TweenService:Create(reg.item, ti, { BackgroundColor3 = tema.item }):Play()
+		TweenService:Create(reg.stroke, ti, { Color = tema.on }):Play()
+		TweenService:Create(reg.titulo, ti, { TextColor3 = tema.on }):Play()
+		TweenService:Create(reg.corpo, ti, { TextColor3 = tema.texto }):Play()
+	end
+
+	for _, reg in ipairs(registroToggles) do
+		TweenService:Create(reg.item, ti, { BackgroundColor3 = tema.item }):Play()
+		TweenService:Create(reg.stroke, ti, { Color = tema.on }):Play()
+		TweenService:Create(reg.label, ti, { TextColor3 = tema.texto }):Play()
+		local ligado = reg.estado()
+		TweenService:Create(reg.trilho, ti, { BackgroundColor3 = ligado and tema.on or tema.off }):Play()
+	end
+
+	for _, reg in ipairs(registroSliders) do
+		TweenService:Create(reg.item, ti, { BackgroundColor3 = tema.item }):Play()
+		TweenService:Create(reg.stroke, ti, { Color = tema.on }):Play()
+		TweenService:Create(reg.label, ti, { TextColor3 = tema.texto }):Play()
+		TweenService:Create(reg.valorLabel, ti, { TextColor3 = tema.on, BackgroundColor3 = tema.on }):Play()
+		TweenService:Create(reg.trilho, ti, { BackgroundColor3 = tema.off }):Play()
+		TweenService:Create(reg.preenchimento, ti, { BackgroundColor3 = tema.on }):Play()
+		TweenService:Create(reg.strokeBolinha, ti, { Color = tema.on }):Play()
+	end
+
+	TweenService:Create(consoleFrame, ti, { BackgroundColor3 = tema.fundo }):Play()
+	TweenService:Create(consoleTopo, ti, { BackgroundColor3 = tema.topo }):Play()
+	TweenService:Create(consoleTopoFill, ti, { BackgroundColor3 = tema.topo }):Play()
+	TweenService:Create(consoleLinha, ti, { BackgroundColor3 = tema.on }):Play()
+	TweenService:Create(consoleBorda, ti, { Color = tema.on }):Play()
+	TweenService:Create(consoleTitulo, ti, { TextColor3 = tema.texto }):Play()
+	TweenService:Create(consoleSub, ti, { TextColor3 = tema.texto }):Play()
+	TweenService:Create(consoleVazio, ti, { TextColor3 = tema.texto }):Play()
+	TweenService:Create(consoleInputFrame, ti, { BackgroundColor3 = tema.item }):Play()
+	TweenService:Create(consoleInputStroke, ti, { Color = tema.on }):Play()
+	TweenService:Create(consolePrompt, ti, { TextColor3 = tema.on }):Play()
+	TweenService:Create(consoleInput, ti, { TextColor3 = tema.texto, PlaceholderColor3 = tema.off }):Play()
+
+	for _, reg in ipairs(registroBotoes) do
+		TweenService:Create(reg.btn, ti, {
+			BackgroundColor3 = reg.destaque and tema.on or tema.item,
+			TextColor3 = reg.destaque and Color3.new(1, 1, 1) or tema.texto,
+		}):Play()
+		TweenService:Create(reg.stroke, ti, { Color = tema.on }):Play()
+	end
+
+	for _, e in ipairs(entradas) do
+		TweenService:Create(e.msg, ti, { TextColor3 = tema.texto }):Play()
+	end
+	atualizarFiltros()
+
+	for nome, btn in pairs(botoesAbas) do
+		local selecionado = (nome == abaAtual)
+		TweenService:Create(btn, ti, {
+			BackgroundColor3 = selecionado and tema.on or tema.item,
+			TextColor3 = selecionado and COR_TEXTO_ABA_ATIVA or tema.texto,
+		}):Play()
+	end
+
+	for chave, sw in pairs(swatches) do
+		sw.stroke.Thickness = (chave == nomeTema) and 3 or 1
+		sw.stroke.Color = (chave == nomeTema) and Color3.new(1, 1, 1) or Color3.fromRGB(60, 60, 70)
+	end
+
+	local gradienteExistente = borda:FindFirstChildOfClass("UIGradient")
+	if tema.vfx then
+		if not gradienteExistente then
+			gradienteExistente = Instance.new("UIGradient")
+			gradienteExistente.Parent = borda
+		end
+		gradienteExistente.Color = ColorSequence.new(tema.vfxCores[1], tema.vfxCores[2])
+		gradienteExistente.Rotation = 0
+		local giro = TweenService:Create(gradienteExistente, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false), { Rotation = 360 })
+		gradienteExistente:SetAttribute("VFXAtivo", true)
+		giro:Play()
+	elseif gradienteExistente then
+		gradienteExistente:Destroy()
+	end
+end
+
+for chave, tema in pairs(Temas) do
+	ordemTema = ordemTema + 1
+	local sw = Instance.new("TextButton")
+	sw.Name = "Cor_" .. chave
+	sw.LayoutOrder = ordemTema
+	sw.BackgroundColor3 = tema.on
+	sw.Text = ""
+	sw.AutoButtonColor = false
+	sw.BorderSizePixel = 0
+	sw.ClipsDescendants = true
+	sw.Parent = grade
+	arredondar(sw, 12)
+
+	if tema.vfx then
+		local gradPreview = Instance.new("UIGradient")
+		gradPreview.Color = ColorSequence.new(tema.vfxCores[1], tema.vfxCores[2])
+		gradPreview.Rotation = 45
+		gradPreview.Parent = sw
+	end
+
+	local strokeSw = Instance.new("UIStroke")
+	strokeSw.Thickness = 1
+	strokeSw.Color = Color3.fromRGB(60, 60, 70)
+	strokeSw.Parent = sw
+
+	local legenda = Instance.new("TextLabel")
+	legenda.Size = UDim2.new(1, 0, 0, 18)
+	legenda.Position = UDim2.new(0, 0, 1, -18)
+	legenda.BackgroundTransparency = 0.35
+	legenda.BackgroundColor3 = Color3.new(0, 0, 0)
+	legenda.BorderSizePixel = 0
+	legenda.Text = chave
+	legenda.TextColor3 = Color3.new(1, 1, 1)
+	legenda.TextSize = 9
+	legenda.Font = Enum.Font.GothamMedium
+	legenda.TextWrapped = true
+	legenda.Parent = sw
+
+	sw.MouseButton1Click:Connect(function() aplicarTema(chave) end)
+	swatches[chave] = { botao = sw, stroke = strokeSw }
+end
+
+----------------------------------------------------------------
+-- ABA CONFIGS: MODO LEVE
+----------------------------------------------------------------
+local leve = {
+	ativo = false,
+	token = 0,
+	restaurar = {},                              -- configs globais: { objeto, propriedade, valorOriginal }
+	originais = setmetatable({}, { __mode = "k" }), -- [instancia] = { propriedade = valorOriginal }
+	removidos = {},                              -- instâncias tiradas do jogo: { instancia, paiOriginal }
+	conexaoWorkspace = nil,
+}
+
+-- altera uma propriedade global guardando o valor original
+local function definir(obj, prop, valor)
+	local ok, atual = pcall(function() return obj[prop] end)
+	if not ok then return end
+	table.insert(leve.restaurar, { obj, prop, atual })
+	pcall(function() obj[prop] = valor end)
+end
+
+-- altera uma propriedade de uma instância guardando o original
+local function definirInst(inst, prop, valor)
+	local t = leve.originais[inst]
+	if not t then
+		t = {}
+		leve.originais[inst] = t
+	end
+	if t[prop] == nil then t[prop] = inst[prop] end
+	inst[prop] = valor
+end
+
+local function otimizarInstancia(inst)
+	local mudou = false
+	pcall(function()
+		if inst:IsA("Terrain") then return end
+
+		if inst:IsA("ParticleEmitter") then
+			-- Enabled=false não impede :Emit(), então zera também a vida das partículas
+			definirInst(inst, "Enabled", false)
+			definirInst(inst, "Rate", 0)
+			definirInst(inst, "Lifetime", NumberRange.new(0))
+			mudou = true
+		elseif inst:IsA("Trail") or inst:IsA("Beam") or inst:IsA("Fire") or inst:IsA("Smoke")
+			or inst:IsA("Sparkles") or inst:IsA("Highlight") then
+			definirInst(inst, "Enabled", false)
+			mudou = true
+		elseif inst:IsA("Explosion") then
+			definirInst(inst, "Visible", false)
+			mudou = true
+		elseif inst:IsA("Decal") or inst:IsA("Texture") then
+			definirInst(inst, "Transparency", 1)
+			mudou = true
+		elseif inst:IsA("SurfaceAppearance") then
+			table.insert(leve.removidos, { inst, inst.Parent })
+			inst.Parent = nil
+			mudou = true
+		elseif inst:IsA("SpecialMesh") then
+			definirInst(inst, "TextureId", "")
+			mudou = true
+		elseif inst:IsA("PostEffect") then
+			definirInst(inst, "Enabled", false)
+			mudou = true
+		elseif inst:IsA("PointLight") or inst:IsA("SpotLight") or inst:IsA("SurfaceLight") then
+			definirInst(inst, "Shadows", false)
+			mudou = true
+		elseif inst:IsA("BasePart") then
+			if inst:IsA("MeshPart") then
+				definirInst(inst, "RenderFidelity", Enum.RenderFidelity.Performance)
+				definirInst(inst, "TextureID", "")
+			end
+			definirInst(inst, "Material", Enum.Material.SmoothPlastic)
+			definirInst(inst, "Reflectance", 0)
+			definirInst(inst, "CastShadow", false)
+			mudou = true
+		end
+	end)
+	return mudou
+end
+
+local function ativarModoLeve()
+	if leve.ativo then return end
+	leve.ativo = true
+	leve.token = leve.token + 1
+	local meuToken = leve.token
+
+	-- qualidade gráfica / sombras
+	pcall(function() definir(settings().Rendering, "QualityLevel", Enum.QualityLevel.Level01) end)
+	pcall(function() definir(UserSettings():GetService("UserGameSettings"), "SavedQualityLevel", Enum.SavedQualitySetting.QualityLevel1) end)
+	definir(Lighting, "GlobalShadows", false)
+	definir(Lighting, "Technology", Enum.Technology.Compatibility)
+
+	-- água e grama do terreno
+	local terreno = workspace:FindFirstChildOfClass("Terrain")
+	if terreno then
+		definir(terreno, "Decoration", false)
+		definir(terreno, "WaterReflectance", 0)
+		definir(terreno, "WaterWaveSize", 0)
+		definir(terreno, "WaterWaveSpeed", 0)
+	end
+
+	-- efeitos de pós-processamento do Lighting (bloom, blur, sunrays, etc.)
+	for _, d in ipairs(Lighting:GetDescendants()) do
+		otimizarInstancia(d)
+	end
+
+	-- partículas, luzes, materiais, etc. do workspace (em lotes pra não travar)
+	task.spawn(function()
+		local total, otimizados = 0, 0
+		for _, d in ipairs(workspace:GetDescendants()) do
+			if not leve.ativo or leve.token ~= meuToken then return end
+			if otimizarInstancia(d) then otimizados = otimizados + 1 end
+			total = total + 1
+			if total % 300 == 0 then task.wait() end
+		end
+		logar("info", "Modo Leve ativado: " .. otimizados .. " objetos otimizados.")
+	end)
+
+	-- otimiza também o que aparecer depois
+	leve.conexaoWorkspace = conectar(workspace.DescendantAdded, function(d)
+		if leve.ativo then otimizarInstancia(d) end
+	end)
+end
+
+local function desativarModoLeve()
+	if not leve.ativo then return end
+	leve.ativo = false
+	leve.token = leve.token + 1
+
+	if leve.conexaoWorkspace then
+		leve.conexaoWorkspace:Disconnect()
+		leve.conexaoWorkspace = nil
+	end
+
+	for i = #leve.restaurar, 1, -1 do
+		local r = leve.restaurar[i]
+		pcall(function() r[1][r[2]] = r[3] end)
+	end
+	table.clear(leve.restaurar)
+
+	for inst, props in pairs(leve.originais) do
+		if inst.Parent then
+			for prop, valor in pairs(props) do
+				pcall(function() inst[prop] = valor end)
+			end
+		end
+	end
+	table.clear(leve.originais)
+
+	for _, r in ipairs(leve.removidos) do
+		pcall(function()
+			if r[2] and r[2].Parent then r[1].Parent = r[2] end
+		end)
+	end
+	table.clear(leve.removidos)
+
+	logar("info", "Modo Leve desativado: configurações originais restauradas.")
+end
+
+criarTitulo(paginaConfigs, "Desempenho", 2)
+
+criarToggle(paginaConfigs, "Modo Leve (qualidade baixa)", 3, function(on)
+	modoLeveAtivo = on
+	if on then ativarModoLeve() else desativarModoLeve() end
+end)
+
+criarTitulo(paginaConfigs, "Desenvolvedor", 4)
+
+local botaoConsole = criarBotao(paginaConfigs, "⌨  Abrir Console Dev", UDim2.new(1, 0, 0, 46), nil, 5, true)
+
+badgeBotaoConsole = Instance.new("TextLabel")
+badgeBotaoConsole.Size = UDim2.fromOffset(24, 24)
+badgeBotaoConsole.Position = UDim2.new(1, -34, 0.5, -12)
+badgeBotaoConsole.BackgroundColor3 = TIPOS_LOG.erro.cor
+badgeBotaoConsole.TextColor3 = Color3.new(1, 1, 1)
+badgeBotaoConsole.TextSize = 11
+badgeBotaoConsole.Font = Enum.Font.GothamBold
+badgeBotaoConsole.Visible = false
+badgeBotaoConsole.Parent = botaoConsole
+arredondar(badgeBotaoConsole, 12)
+atualizarContadores()
+
+botaoConsole.MouseButton1Click:Connect(function()
+	definirConsoleAberto(not consoleAberto)
+end)
+
+----------------------------------------------------------------
+-- COMANDOS DO CONSOLE DEV (Delete / Sair)
+----------------------------------------------------------------
+local saindo = false
+
+local function sairDoMenu()
+	if saindo then return end
+	saindo = true
+	logar("info", "Saindo... desfazendo funções e removendo o menu.")
+
+	-- desfaz tudo que estiver ativo
+	pcall(desativarESPFruit)
+	pcall(desativarAntiLava)
+	pcall(function() if leve.ativo then desativarModoLeve() end end)
+	pcall(function()
+		if velocidadeAtiva then
+			velocidadeAtiva = false
+			local hum = humanoidAtual()
+			if hum then hum.WalkSpeed = velocidadePadrao end
+		end
+	end)
+	pcall(function()
+		ttkHabilitado = false
+		pararXTTK()
+	end)
+	pcall(function()
+		killAuraAtivo = false
+	end)
+	pcall(function()
+		airFlashHabilitado = false
+		for _, v in ipairs(workspace:GetChildren()) do
+			if v.Name == "AirFlashStepPart" then v:Destroy() end
+		end
+	end)
+	pcall(function()
+		if boxSoruAtivo then
+			boxSoruAtivo = false
+			gerenciarTamanhosGlobais(false)
+		end
+	end)
+	pcall(function()
+		local hum = humanoidAtual()
+		if hum and hum.JumpPower == 90 then hum.JumpPower = 50 end
+	end)
+
+	-- desconecta tudo e apaga a GUI
+	for _, c in ipairs(conexoesGlobais) do
+		pcall(function() c:Disconnect() end)
+	end
+	table.clear(conexoesGlobais)
+
+	task.wait(0.4) -- tempo de ver a mensagem no console
+	gui:Destroy()
+end
+
+local function executarComando(texto)
+	local cmd = string.lower(string.match(texto, "^%s*(.-)%s*$") or "")
+	if cmd == "" then return end
+
+	logar("info", "> " .. texto)
+
+	if cmd == "delete" or cmd == "sair" then
+		sairDoMenu()
+	else
+		logar("aviso", 'Comando desconhecido: "' .. cmd .. '". Comandos: Delete, Sair.')
+	end
+end
+
+consoleInput.FocusLost:Connect(function(enterPressed)
+	if not enterPressed then return end
+	local texto = consoleInput.Text
+	consoleInput.Text = ""
+	executarComando(texto)
+end)
+
+----------------------------------------------------------------
+-- INICIALIZAÇÃO
+----------------------------------------------------------------
+aplicarTema(TEMA_PADRAO, true)
+selecionarAba("Início")
+
+----------------------------------------------------------------
+-- ANIMAÇÃO ABRIR/FECHAR
+----------------------------------------------------------------
+local aberto = false
+local tamanhoOriginal = janela.Size
+
+local function definirAberto(valor)
+	aberto = valor
+	if aberto then
+		janela.Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0)
+		janela.Visible = true
+		TweenService:Create(janela, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = tamanhoOriginal }):Play()
+	else
+		local t = TweenService:Create(janela, TweenInfo.new(0.15), { Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0) })
+		t:Play()
+		t.Completed:Wait()
+		if not aberto then janela.Visible = false end
+	end
+end
+
+fechar.MouseButton1Click:Connect(function() definirAberto(false) end)
+
+----------------------------------------------------------------
+-- ARRASTAR JANELA
+----------------------------------------------------------------
+local arrastando, inicioMouse, inicioPos
+topo.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		arrastando = true
+		inicioMouse = input.Position
+		inicioPos = janela.Position
+	end
+end)
+
+conectar(UserInputService.InputChanged, function(input)
+	if arrastando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - inicioMouse
+		janela.Position = UDim2.new(inicioPos.X.Scale, inicioPos.X.Offset + delta.X, inicioPos.Y.Scale, inicioPos.Y.Offset + delta.Y)
+	end
+end)
+
+conectar(UserInputService.InputEnded, function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		arrastando = false
+	end
+end)
+
+----------------------------------------------------------------
+-- ARRASTAR BOTÃO DE ABRIR (INALTERADO)
+----------------------------------------------------------------
+local botaoArrastando = false
+local botaoMoveu = false
+local botaoInicioMouse, botaoInicioX, botaoInicioY
+
+botaoAbrir.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		botaoArrastando = true
+		botaoMoveu = false
+		botaoInicioMouse = input.Position
+		local pos = botaoAbrir.Position
+		local tela = gui.AbsoluteSize
+		botaoInicioX = pos.X.Scale * tela.X + pos.X.Offset
+		botaoInicioY = pos.Y.Scale * tela.Y + pos.Y.Offset
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then botaoArrastando = false end
+		end)
+	end
+end)
+
+conectar(UserInputService.InputChanged, function(input)
+	if botaoArrastando and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - botaoInicioMouse
+		if delta.Magnitude > 4 then botaoMoveu = true end
+		if botaoMoveu then
+			local tela = gui.AbsoluteSize
+			local tam = botaoAbrir.AbsoluteSize
+			local x = math.clamp(botaoInicioX + delta.X, 0, tela.X - tam.X)
+			local y = math.clamp(botaoInicioY + delta.Y, 0, tela.Y - tam.Y)
+			botaoAbrir.Position = UDim2.fromOffset(x, y)
+		end
+	end
+end)
+
+botaoAbrir.MouseButton1Click:Connect(function()
+	if not botaoMoveu then definirAberto(not aberto) end
+end)
