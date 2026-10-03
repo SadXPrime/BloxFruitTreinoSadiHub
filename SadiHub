@@ -1393,8 +1393,9 @@ end)
 ----------------------------------------------------------------
 -- AIR FLASHSTEP (aperte R: cria uma parte na posição do mouse, limitada pelo alcance)
 ----------------------------------------------------------------
-local AIR_FLASH_ALCANCE = 200
 local airFlashHabilitado = false
+do
+local AIR_FLASH_ALCANCE = 200
 local mouse = player:GetMouse()
 
 criarTitulo(paginaFull, "Air FlashStep", 4)
@@ -1443,15 +1444,18 @@ conectar(UserInputService.InputBegan, function(input, processado)
 	end)
 end)
 
+end
+
 ----------------------------------------------------------------
 -- KILL AURA (equipa a arma, escolhe o alvo mais próximo e ataca)
 ----------------------------------------------------------------
+local killAuraAtivo = false
+do
 local AURA_ALCANCE = 50          -- distância máxima do alvo (studs)
 local AURA_INTERVALO = 0.1       -- segundos entre cada rodada de ataques
 local AURA_ATAQUES_POR_TICK = 3  -- quantos ataques por rodada
 local AURA_TEAM_CHECK = true     -- ignora jogadores do seu time
 
-local killAuraAtivo = false
 local ultimoTickAura = 0
 
 -- ataque: ativa a Tool que você já tem na mão (M1)
@@ -1548,6 +1552,8 @@ criarToggle(paginaFull, "Kill Aura", 11, function(on)
 		logar("info", "Kill Aura desativado.")
 	end
 end, false)
+
+end
 
 ----------------------------------------------------------------
 -- ESP DE FRUTAS
@@ -1795,6 +1801,8 @@ end, false)
 ----------------------------------------------------------------
 -- BIG SKIN AURA (corpo gigante cinza, sem acessórios/roupas)
 ----------------------------------------------------------------
+local enableBigSkin, disableBigSkin
+do
 local bigSkinBugEnabled = false
 local bigSkinBugOriginal = {}
 local bigSkinBugConnections = {}
@@ -1924,7 +1932,7 @@ local function onCharAddedBigSkin(char)
 	applyBigSkin(char)
 end
 
-local function enableBigSkin()
+function enableBigSkin()
 	if bigSkinBugEnabled then return end
 	bigSkinBugEnabled = true
 
@@ -1936,7 +1944,7 @@ local function enableBigSkin()
 	bigSkinBugConnections.CharAdded = player.CharacterAdded:Connect(onCharAddedBigSkin)
 end
 
-local function disableBigSkin()
+function disableBigSkin()
 	bigSkinBugEnabled = false
 
 	if bigSkinBugConnections.CharAdded then
@@ -1947,6 +1955,8 @@ local function disableBigSkin()
 	if player.Character then
 		restoreBigSkin(player.Character)
 	end
+end
+
 end
 
 ----------------------------------------------------------------
