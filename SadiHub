@@ -10,6 +10,9 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local camera = workspace.CurrentCamera
 
+-- detecta celular/tablet (tem toque e não tem teclado)
+local ehMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
 -- registro das conexões globais (pra poder limpar tudo ao sair do menu)
 local conexoesGlobais = {}
 local function conectar(sinal, fn)
@@ -203,7 +206,7 @@ gui.Parent = playerGui
 ----------------------------------------------------------------
 local botaoAbrir = Instance.new("ImageButton")
 botaoAbrir.Name = BUTTON_ID
-botaoAbrir.Size = UDim2.fromOffset(46, 46)
+botaoAbrir.Size = ehMobile and UDim2.fromOffset(54, 54) or UDim2.fromOffset(46, 46)
 
 local alturaTela = camera.ViewportSize.Y
 local posBase = POSICAO_ALEATORIA and POSICOES_POSSIVEIS[math.random(1, #POSICOES_POSSIVEIS)] or POSICAO_FIXA
@@ -215,6 +218,7 @@ botaoAbrir.ScaleType = Enum.ScaleType.Fit
 botaoAbrir.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 botaoAbrir.BackgroundTransparency = 0.1
 botaoAbrir.AutoButtonColor = false
+botaoAbrir.Visible = false -- aparece depois da intro/loading
 botaoAbrir.Parent = gui
 arredondar(botaoAbrir, 12)
 
@@ -234,19 +238,26 @@ bordaBotao.Parent = botaoAbrir
 ----------------------------------------------------------------
 -- JANELA PRINCIPAL
 ----------------------------------------------------------------
-local ALTURA_JANELA = 460
-local LARGURA_JANELA = 340
+local ALTURA_JANELA = ehMobile and math.clamp(camera.ViewportSize.Y - 60, 240, 460) or 460
+local LARGURA_JANELA = ehMobile and math.clamp(camera.ViewportSize.X - 24, 260, 360) or 360
 local ALTURA_TOPO = 56
 
 local janela = Instance.new("Frame")
 janela.Name = "Janela"
 janela.Size = UDim2.fromOffset(LARGURA_JANELA, ALTURA_JANELA)
-janela.Position = UDim2.new(0.5, -LARGURA_JANELA / 2, 0.5, -ALTURA_JANELA / 2)
+janela.AnchorPoint = Vector2.new(0.5, 0.5)
+janela.Position = UDim2.new(0.5, 0, 0.5, 0)
 janela.ClipsDescendants = true
 janela.Visible = false
 janela.BorderSizePixel = 0
 janela.Parent = gui
 arredondar(janela, 16)
+
+do
+	local e = Instance.new("UIScale")
+	e.Scale = 1
+	e.Parent = janela
+end
 
 -- degradê sutil no fundo da janela (dá profundidade)
 local gradFundo = Instance.new("UIGradient")
@@ -305,7 +316,7 @@ local titulo = Instance.new("TextLabel")
 titulo.Size = UDim2.new(1, -70, 0, 22)
 titulo.Position = UDim2.fromOffset(18, 9)
 titulo.BackgroundTransparency = 1
-titulo.Text = "Menu Principal"
+titulo.Text = "Sadi"
 titulo.TextSize = 18
 titulo.Font = Enum.Font.GothamBold
 titulo.TextXAlignment = Enum.TextXAlignment.Left
@@ -315,7 +326,7 @@ local subtitulo = Instance.new("TextLabel")
 subtitulo.Size = UDim2.new(1, -70, 0, 14)
 subtitulo.Position = UDim2.fromOffset(18, 31)
 subtitulo.BackgroundTransparency = 1
-subtitulo.Text = "Painel de funções"
+subtitulo.Text = "I Love TheCursedYama"
 subtitulo.TextSize = 11
 subtitulo.TextTransparency = 0.45
 subtitulo.Font = Enum.Font.Gotham
@@ -344,10 +355,15 @@ end)
 ----------------------------------------------------------------
 -- ABAS
 ----------------------------------------------------------------
-local NOMES_ABAS = { "Início", "Treino", "Full", "Configs" }
+local NOMES_ABAS = { "Início", "Treino", "Full", "Configs", "SA BLACK LIST" }
 
-local barraAbas = Instance.new("Frame")
+local barraAbas = Instance.new("ScrollingFrame")
 barraAbas.Name = "BarraAbas"
+barraAbas.BorderSizePixel = 0
+barraAbas.ScrollBarThickness = 0
+barraAbas.ScrollingDirection = Enum.ScrollingDirection.X
+barraAbas.AutomaticCanvasSize = Enum.AutomaticSize.X
+barraAbas.CanvasSize = UDim2.new(0, 0, 0, 0)
 barraAbas.Size = UDim2.new(1, -24, 0, 34)
 barraAbas.Position = UDim2.fromOffset(12, ALTURA_TOPO + 12)
 barraAbas.BackgroundTransparency = 1
@@ -355,7 +371,7 @@ barraAbas.Parent = janela
 
 local layoutAbas = Instance.new("UIListLayout")
 layoutAbas.FillDirection = Enum.FillDirection.Horizontal
-layoutAbas.Padding = UDim.new(0, 8)
+layoutAbas.Padding = UDim.new(0, 6)
 layoutAbas.SortOrder = Enum.SortOrder.LayoutOrder
 layoutAbas.Parent = barraAbas
 
@@ -398,6 +414,7 @@ local paginaInicio = criarPagina("Início")
 local paginaTreino = criarPagina("Treino")
 local paginaFull = criarPagina("Full")
 local paginaConfigs = criarPagina("Configs")
+criarPagina("SA BLACK LIST")
 
 local botoesAbas = {}
 local abaAtual = "Início"
@@ -414,20 +431,38 @@ local function selecionarAba(nome)
 			TextColor3 = selecionado and COR_TEXTO_ABA_ATIVA or tema.texto,
 		}):Play()
 	end
+
+	-- se a barra de abas rola (tela pequena), mostra a aba escolhida
+	local b = botoesAbas[nome]
+	if b and barraAbas.AbsoluteCanvasSize.X > barraAbas.AbsoluteSize.X then
+		local esquerda = b.AbsolutePosition.X - barraAbas.AbsolutePosition.X + barraAbas.CanvasPosition.X
+		local direita = esquerda + b.AbsoluteSize.X
+		local visivel = barraAbas.AbsoluteSize.X
+		if direita > barraAbas.CanvasPosition.X + visivel then
+			barraAbas.CanvasPosition = Vector2.new(direita - visivel + 6, 0)
+		elseif esquerda < barraAbas.CanvasPosition.X then
+			barraAbas.CanvasPosition = Vector2.new(math.max(0, esquerda - 6), 0)
+		end
+	end
 end
 
 for i, nome in ipairs(NOMES_ABAS) do
 	local btn = Instance.new("TextButton")
 	btn.Name = "Aba_" .. nome
-	btn.Size = UDim2.new(0.25, -6, 1, 0)
+	btn.Size = UDim2.new(0, 0, 1, 0)
+	btn.AutomaticSize = Enum.AutomaticSize.X
 	btn.LayoutOrder = i
 	btn.Text = nome
 	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 12
+	btn.TextSize = 11
 	btn.AutoButtonColor = false
 	btn.BorderSizePixel = 0
 	btn.Parent = barraAbas
 	arredondar(btn, 10)
+	local padBtn = Instance.new("UIPadding")
+	padBtn.PaddingLeft = UDim.new(0, 10)
+	padBtn.PaddingRight = UDim.new(0, 10)
+	padBtn.Parent = btn
 	btn.MouseButton1Click:Connect(function() selecionarAba(nome) end)
 	botoesAbas[nome] = btn
 end
@@ -589,7 +624,8 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 	return item, definir
 end
 
-local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, callback)
+local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, callback, sufixo)
+	sufixo = sufixo or "%"
 	local item = Instance.new("Frame")
 	item.Size = UDim2.new(1, 0, 0, 64)
 	item.LayoutOrder = ordem
@@ -618,7 +654,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 	valorLabel.Position = UDim2.new(1, -86, 0, 8)
 	valorLabel.BackgroundTransparency = 0.8
 	valorLabel.BorderSizePixel = 0
-	valorLabel.Text = valorInicial .. "%"
+	valorLabel.Text = valorInicial .. sufixo
 	valorLabel.TextSize = 12
 	valorLabel.Font = Enum.Font.GothamBold
 	valorLabel.Parent = item
@@ -662,11 +698,21 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 		
 		preenchimento.Size = UDim2.fromScale(percent, 1)
 		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
-		valorLabel.Text = valorAtual .. "%"
+		valorLabel.Text = valorAtual .. sufixo
 		callback(valorAtual)
 	end
 
-	trilho.InputBegan:Connect(function(input)
+	-- área de toque maior que a barrinha (fica fácil de pegar no celular)
+	local hit = Instance.new("TextButton")
+	hit.Size = UDim2.new(1, -14, 0, 38)
+	hit.Position = UDim2.fromOffset(7, 26)
+	hit.BackgroundTransparency = 1
+	hit.Text = ""
+	hit.AutoButtonColor = false
+	hit.ZIndex = 3
+	hit.Parent = item
+
+	hit.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			arrastando = true
 			atualizarSlider(input)
@@ -734,20 +780,27 @@ local TIPOS_LOG = {
 	info  = { cor = Color3.fromRGB(100, 170, 255), tag = "INFO" },
 }
 local COR_OK = Color3.fromRGB(80, 200, 120)
-local LARG_CONSOLE = 430
-local ALT_CONSOLE = 320
+local LARG_CONSOLE = ehMobile and math.clamp(camera.ViewportSize.X - 24, 280, 430) or 430
+local ALT_CONSOLE = ehMobile and math.clamp(camera.ViewportSize.Y - 80, 200, 320) or 320
 local MAX_LOGS = 150
 
 local consoleFrame = Instance.new("Frame")
 consoleFrame.Name = "ConsoleDev"
 consoleFrame.Size = UDim2.fromOffset(LARG_CONSOLE, ALT_CONSOLE)
-consoleFrame.Position = UDim2.new(0.5, -LARG_CONSOLE / 2 + 40, 0.5, -ALT_CONSOLE / 2 + 40)
+consoleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+consoleFrame.Position = ehMobile and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0.5, 40, 0.5, 40)
 consoleFrame.ClipsDescendants = true
 consoleFrame.Visible = false
 consoleFrame.BorderSizePixel = 0
 consoleFrame.ZIndex = 5
 consoleFrame.Parent = gui
 arredondar(consoleFrame, 16)
+
+do
+	local e = Instance.new("UIScale")
+	e.Scale = 1
+	e.Parent = consoleFrame
+end
 
 local consoleGrad = Instance.new("UIGradient")
 consoleGrad.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 195))
@@ -1288,6 +1341,9 @@ end
 
 criarCartao(paginaInicio, "Bem-vindo, " .. player.DisplayName, "Use as abas acima para acessar as funções. Na aba Configs você troca a cor do menu e ativa o modo leve.", 1)
 criarCartao(paginaInicio, "Dica", "Arraste o topo da janela para mover o menu e o botão ⚙ para reposicioná-lo na tela.", 2)
+if ehMobile then
+	criarCartao(paginaInicio, "Modo celular", "Interface ajustada à sua tela. Ao ligar X TTK TWEEN ou Air FlashStep, aparecem botões X e R na tela. Em Configs você muda o tamanho da interface.", 5)
+end
 
 criarTitulo(paginaFull, "Velocidade", 0)
 
@@ -1409,16 +1465,24 @@ criarToggle(paginaFull, "Air FlashStep (R)", 5, function(on)
 	end
 end, false)
 
-conectar(UserInputService.InputBegan, function(input, processado)
-	if processado then return end
-	if input.KeyCode ~= Enum.KeyCode.R then return end
-	if not airFlashHabilitado then return end
-
+local function dispararAirFlash()
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 
-	local mouseHit = mouse.Hit.Position
+	local mouseHit
+	if ehMobile then
+		-- no celular: mira no centro da tela
+		local cam = workspace.CurrentCamera
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { char }
+		local res = workspace:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1000, params)
+		mouseHit = res and res.Position or (cam.CFrame.Position + cam.CFrame.LookVector * AIR_FLASH_ALCANCE)
+	else
+		mouseHit = mouse.Hit.Position
+	end
+
 	local offset = mouseHit - root.Position
 	local distancia = offset.Magnitude
 	local alvo = mouseHit
@@ -1442,8 +1506,80 @@ conectar(UserInputService.InputBegan, function(input, processado)
 	task.delay(1, function()
 		if p then p:Destroy() end
 	end)
+end
+
+conectar(UserInputService.InputBegan, function(input, processado)
+	if processado then return end
+	if input.KeyCode ~= Enum.KeyCode.R then return end
+	if not airFlashHabilitado then return end
+	dispararAirFlash()
 end)
 
+----------------------------------------------------------------
+-- BOTÕES DE AÇÃO NA TELA (pra quem joga no celular: X e R)
+----------------------------------------------------------------
+local botoesAcaoAtivo = ehMobile
+
+local painelAcoes = Instance.new("Frame")
+painelAcoes.Name = "AcoesMobile"
+painelAcoes.AnchorPoint = Vector2.new(1, 1)
+painelAcoes.Size = UDim2.fromOffset(60, 0)
+painelAcoes.AutomaticSize = Enum.AutomaticSize.Y
+painelAcoes.Position = UDim2.new(1, -16, 1, -130)
+painelAcoes.BackgroundTransparency = 1
+painelAcoes.Parent = gui
+
+local layoutAcoes = Instance.new("UIListLayout")
+layoutAcoes.Padding = UDim.new(0, 10)
+layoutAcoes.SortOrder = Enum.SortOrder.LayoutOrder
+layoutAcoes.HorizontalAlignment = Enum.HorizontalAlignment.Right
+layoutAcoes.Parent = painelAcoes
+
+local function criarBotaoAcao(texto, ordem, aoClicar)
+	local b = criarBotao(painelAcoes, texto, UDim2.fromOffset(58, 58), nil, ordem, true)
+	registroBotoes[#registroBotoes].stroke.Transparency = 0.2
+	local c = b:FindFirstChildOfClass("UICorner")
+	if c then c.CornerRadius = UDim.new(1, 0) end
+	b.TextSize = 20
+	b.Visible = false
+	local tema = Temas[temaAtualNome]
+	b.BackgroundColor3 = tema.on
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.MouseButton1Click:Connect(aoClicar)
+	return b
+end
+
+local botaoAcaoX = criarBotaoAcao("X", 1, function()
+	if ttkHabilitado and not ttkTween then iniciarXTTK() end
+end)
+
+local botaoAcaoR = criarBotaoAcao("R", 2, function()
+	if airFlashHabilitado then dispararAirFlash() end
+end)
+
+-- mostra cada botão só quando a função correspondente está ligada
+conectar(RunService.Heartbeat, function()
+	local vx = botoesAcaoAtivo and ttkHabilitado
+	local vr = botoesAcaoAtivo and airFlashHabilitado
+	if botaoAcaoX.Visible ~= vx then botaoAcaoX.Visible = vx end
+	if botaoAcaoR.Visible ~= vr then botaoAcaoR.Visible = vr end
+end)
+
+----------------------------------------------------------------
+-- CONFIGS: INTERFACE (tamanho do menu + botões na tela)
+----------------------------------------------------------------
+criarTitulo(paginaConfigs, "Interface", 6)
+
+criarSlider(paginaConfigs, "Tamanho do menu", 7, 50, 130, 100, function(v)
+	for _, f in ipairs({ janela, consoleFrame }) do
+		local e = f:FindFirstChildOfClass("UIScale")
+		if e then e.Scale = v / 100 end
+	end
+end)
+
+criarToggle(paginaConfigs, "Botões X / R na tela", 8, function(on)
+	botoesAcaoAtivo = on
+end, botoesAcaoAtivo)
 end
 
 ----------------------------------------------------------------
@@ -1553,6 +1689,290 @@ criarToggle(paginaFull, "Kill Aura", 11, function(on)
 	end
 end, false)
 
+end
+
+----------------------------------------------------------------
+-- DASH LENGTH (toggle + medidor do tamanho do dash)
+----------------------------------------------------------------
+local setDashLength
+do
+	local dashLengthEnabled = false
+	local dashLengthValue = 5
+	local dashLengthThread = nil
+
+	local function aplicarDash(char, valor)
+		if not char then return end
+		char:SetAttribute("DashLength", valor)
+		char:SetAttribute("DashLengthAir", valor)
+	end
+
+	function setDashLength(enabled, value)
+		dashLengthEnabled = enabled
+		if value then dashLengthValue = value end
+
+		if dashLengthThread then
+			pcall(task.cancel, dashLengthThread)
+			dashLengthThread = nil
+		end
+
+		if dashLengthEnabled then
+			dashLengthThread = task.spawn(function()
+				while dashLengthEnabled do
+					local char = player.Character
+					if char and char:GetAttribute("DashLength") ~= dashLengthValue then
+						aplicarDash(char, dashLengthValue)
+					end
+					task.wait(0.1)
+				end
+			end)
+		else
+			aplicarDash(player.Character, 1)
+		end
+	end
+
+	-- reaplica quando o personagem respawna
+	conectar(player.CharacterAdded, function(char)
+		if dashLengthEnabled then
+			task.wait(0.1)
+			aplicarDash(char, dashLengthValue)
+		end
+	end)
+
+	criarTitulo(paginaFull, "Dash", 12)
+
+	criarToggle(paginaFull, "Dash Longo", 13, function(on)
+		setDashLength(on)
+		if on then
+			logar("info", "Dash Longo ativado (tamanho " .. dashLengthValue .. ").")
+		else
+			logar("info", "Dash Longo desativado (voltou para 1).")
+		end
+	end, false)
+
+	criarSlider(paginaFull, "Tamanho do Dash", 14, 1, 20, dashLengthValue, function(v)
+		dashLengthValue = v
+	end, "x")
+end
+
+----------------------------------------------------------------
+-- SORU AUTO AIM (escolhe o alvo e entrega a posição pro seu hook)
+----------------------------------------------------------------
+local soruAutoAimAtivo = false
+local obterPosicaoSoru
+do
+	local SORU_MODO = "360"            -- "360", "180" ou "FOV"
+	local SORU_PRIORIDADE = "Nearest"  -- "Nearest", "Low HP" ou "Looking At Me"
+	local SORU_FOV_RAIO = 100          -- só usado no modo "FOV"
+	local SORU_TEAM_CHECK = false      -- true = ignora jogadores do seu time
+
+	local soruAlcance = 300
+	local alvoEscolhido = nil          -- nome do jogador escolhido; nil = automático
+	local ultimaPos = nil
+	local ultimaPosTempo = 0
+	local ultimoCalculo = 0
+
+	-- raiz do personagem (com fallback se não tiver HumanoidRootPart)
+	local function raizDe(char)
+		if not char then return nil end
+		return char:FindFirstChild("HumanoidRootPart")
+			or char:FindFirstChild("UpperTorso")
+			or char:FindFirstChild("Torso")
+			or char.PrimaryPart
+			or char:FindFirstChild("Head")
+	end
+
+	local function ehInimigo(p)
+		if not p or p == player then return false end
+		if SORU_TEAM_CHECK and p.Team and player.Team and p.Team == player.Team then return false end
+		return true
+	end
+
+	local function alvoValido(hrp, meuHRP)
+		if not hrp or not meuHRP then return false end
+
+		if SORU_MODO == "180" then
+			local dir = hrp.Position - meuHRP.Position
+			if dir.Magnitude > 0 and meuHRP.CFrame.LookVector:Dot(dir.Unit) < 0 then
+				return false
+			end
+		elseif SORU_MODO == "FOV" then
+			local tela, naTela = workspace.CurrentCamera:WorldToViewportPoint(hrp.Position)
+			if not naTela then return false end
+			local centro = workspace.CurrentCamera.ViewportSize / 2
+			if (Vector2.new(tela.X, tela.Y) - centro).Magnitude > SORU_FOV_RAIO then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function buscarAlvoSoru(meuHRP)
+		-- jogador escolhido manualmente (só respeita o alcance máximo)
+		if alvoEscolhido then
+			local p = Players:FindFirstChild(alvoEscolhido)
+			local char = p and p.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local hrp = raizDe(char)
+			if hum and hum.Health > 0 and hrp and (hrp.Position - meuHRP.Position).Magnitude <= soruAlcance then
+				return hrp
+			end
+			return nil
+		end
+
+		-- automático
+		local validos = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if ehInimigo(p) and p.Character and p.Character.Parent then
+				local hum = p.Character:FindFirstChildOfClass("Humanoid")
+				local hrp = raizDe(p.Character)
+				if hum and hum.Health > 0 and hrp and alvoValido(hrp, meuHRP) then
+					local dist = (hrp.Position - meuHRP.Position).Magnitude
+					if dist <= soruAlcance then
+						table.insert(validos, { HRP = hrp, Humanoid = hum, Distancia = dist })
+					end
+				end
+			end
+		end
+
+		if #validos == 0 then return nil end
+
+		if SORU_MODO == "FOV" then
+			local centro = workspace.CurrentCamera.ViewportSize / 2
+			local function distTela(e)
+				local pt = workspace.CurrentCamera:WorldToViewportPoint(e.HRP.Position)
+				return (Vector2.new(pt.X, pt.Y) - centro).Magnitude
+			end
+			table.sort(validos, function(a, b) return distTela(a) < distTela(b) end)
+		elseif SORU_PRIORIDADE == "Low HP" then
+			table.sort(validos, function(a, b) return a.Humanoid.Health < b.Humanoid.Health end)
+		elseif SORU_PRIORIDADE == "Looking At Me" then
+			local function olhandoPraMim(e)
+				local dir = meuHRP.Position - e.HRP.Position
+				if dir.Magnitude == 0 then return 1 end
+				return e.HRP.CFrame.LookVector:Dot(dir.Unit)
+			end
+			table.sort(validos, function(a, b) return olhandoPraMim(a) > olhandoPraMim(b) end)
+		else
+			table.sort(validos, function(a, b) return a.Distancia < b.Distancia end)
+		end
+
+		return validos[1].HRP
+	end
+
+	-- posição do alvo: calculada NA HORA em que você chama (sempre fresca).
+	-- se falhar por um instante, usa a última posição conhecida por até 0.5s.
+	function obterPosicaoSoru()
+		if not soruAutoAimAtivo then return nil end
+
+		local char = player.Character
+		local meuHRP = char and char:FindFirstChild("HumanoidRootPart")
+		if meuHRP then
+			local ok, raiz = pcall(buscarAlvoSoru, meuHRP)
+			if ok and raiz then
+				ultimaPos = raiz.Position
+				ultimaPosTempo = os.clock()
+				return ultimaPos
+			end
+		end
+
+		if ultimaPos and os.clock() - ultimaPosTempo <= 0.5 then
+			return ultimaPos
+		end
+		return nil
+	end
+
+	-- deixa a função disponível pro seu hook (se o executor tiver getgenv)
+	pcall(function()
+		local env = getgenv and getgenv()
+		if env then env.SoruAutoAimPos = obterPosicaoSoru end
+	end)
+
+	-- mantém a última posição conhecida atualizada
+	conectar(RunService.Heartbeat, function()
+		if not soruAutoAimAtivo then return end
+		local agora = os.clock()
+		if agora - ultimoCalculo < 0.1 then return end
+		ultimoCalculo = agora
+		obterPosicaoSoru()
+	end)
+
+-- interface
+	criarTitulo(paginaFull, "Soru Auto Aim", 15)
+
+	criarToggle(paginaFull, "Soru Auto Aim", 16, function(on)
+		soruAutoAimAtivo = on
+		if not on then ultimaPos = nil end
+		logar("info", on and ("Soru Auto Aim ativado (alcance " .. soruAlcance .. ").") or "Soru Auto Aim desativado.")
+	end, false)
+
+	criarSlider(paginaFull, "Distância Máx", 17, 100, 2000, soruAlcance, function(v)
+		soruAlcance = v
+	end, " studs")
+
+	criarTitulo(paginaFull, "Alvo do Soru", 18)
+
+	local lista = Instance.new("Frame")
+	lista.Size = UDim2.new(1, 0, 0, 0)
+	lista.AutomaticSize = Enum.AutomaticSize.Y
+	lista.LayoutOrder = 19
+	lista.BackgroundTransparency = 1
+	lista.Parent = paginaFull
+
+	local layoutLista = Instance.new("UIListLayout")
+	layoutLista.Padding = UDim.new(0, 4)
+	layoutLista.SortOrder = Enum.SortOrder.LayoutOrder
+	layoutLista.Parent = lista
+
+	local botoesLista = {}
+
+	local function reconstruirLista()
+		-- limpa botões antigos (e tira do registro de temas)
+		for _, b in ipairs(botoesLista) do
+			for i = #registroBotoes, 1, -1 do
+				if registroBotoes[i].btn == b then table.remove(registroBotoes, i) end
+			end
+			b:Destroy()
+		end
+		table.clear(botoesLista)
+
+		-- se o jogador escolhido saiu, volta pro automático
+		if alvoEscolhido and not Players:FindFirstChild(alvoEscolhido) then
+			alvoEscolhido = nil
+		end
+
+		local function adicionar(texto, nome, ordem)
+			local selecionado = (alvoEscolhido == nome)
+			local b = criarBotao(lista, (selecionado and "✓  " or "") .. texto, UDim2.new(1, 0, 0, 30), nil, ordem, false)
+			registroBotoes[#registroBotoes].destaque = selecionado
+
+			local tema = Temas[temaAtualNome]
+			b.BackgroundColor3 = selecionado and tema.on or tema.item
+			b.TextColor3 = selecionado and Color3.new(1, 1, 1) or tema.texto
+
+			b.MouseButton1Click:Connect(function()
+				alvoEscolhido = nome
+				logar("info", nome and ("Alvo do Soru: " .. nome) or "Alvo do Soru: automático.")
+				reconstruirLista()
+			end)
+			table.insert(botoesLista, b)
+		end
+
+		adicionar("Automático (por prioridade)", nil, 0)
+
+		local nomes = {}
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player then table.insert(nomes, p) end
+		end
+		table.sort(nomes, function(a, b) return a.Name:lower() < b.Name:lower() end)
+
+		for i, p in ipairs(nomes) do
+			adicionar(p.DisplayName .. "  (@" .. p.Name .. ")", p.Name, i)
+		end
+	end
+
+	conectar(Players.PlayerAdded, function() task.defer(reconstruirLista) end)
+	conectar(Players.PlayerRemoving, function() task.defer(reconstruirLista) end)
+	reconstruirLista()
 end
 
 ----------------------------------------------------------------
@@ -2385,6 +2805,20 @@ local function sairDoMenu()
 	pcall(function()
 		killAuraAtivo = false
 	end)
+	pcall(function() setDashLength(false) end)
+	pcall(function()
+		local env = getgenv and getgenv()
+		if env then env.SABlacklist = nil end
+	end)
+	pcall(function()
+		local g = playerGui:FindFirstChild("Sadi_Intro")
+		if g then g:Destroy() end
+	end)
+	pcall(function()
+		soruAutoAimAtivo = false
+		local env = getgenv and getgenv()
+		if env then env.SoruAutoAimPos = nil end
+	end)
 	pcall(disableBigSkin)
 	pcall(function()
 		airFlashHabilitado = false
@@ -2432,6 +2866,466 @@ consoleInput.FocusLost:Connect(function(enterPressed)
 	consoleInput.Text = ""
 	executarComando(texto)
 end)
+
+criarTitulo(paginaConfigs, "Menu", 9)
+
+local botaoSair = criarBotao(paginaConfigs, "Remover menu (Sair)", UDim2.new(1, 0, 0, 46), nil, 10, true)
+botaoSair.MouseButton1Click:Connect(function()
+	sairDoMenu()
+end)
+
+----------------------------------------------------------------
+-- ABA SA BLACK LIST (teclas que o Silent Aim deve ignorar, por categoria)
+----------------------------------------------------------------
+do
+	local pagina = paginas["SA BLACK LIST"]
+
+	local ORDEM_CATEGORIAS = { "Melee", "Fruit", "Sword", "Gun" }
+	local TECLAS = {
+		Melee = { "Z", "X", "C" },
+		Fruit = { "Z", "X", "C", "V", "F", "TAP" },
+		Sword = { "Z", "X" },
+		Gun   = { "Z", "X" },
+	}
+	local TITULOS = { Melee = "Melees", Fruit = "Frutas", Sword = "Espadas", Gun = "Armas" }
+	-- ToolTip da Tool equipada -> categoria
+	local TOOLTIP_PARA_CATEGORIA = { Melee = "Melee", Sword = "Sword", Gun = "Gun", ["Blox Fruit"] = "Fruit" }
+
+	local BlacklistedKeys = {}
+	for cat, teclas in pairs(TECLAS) do
+		BlacklistedKeys[cat] = {}
+		for _, k in ipairs(teclas) do
+			BlacklistedKeys[cat][k] = false
+		end
+	end
+
+	-- seta a blacklist de uma tecla
+	local function SetBlacklistKey(category, key, state)
+		if BlacklistedKeys[category] and BlacklistedKeys[category][key] ~= nil then
+			BlacklistedKeys[category][key] = state
+		end
+	end
+
+	-- verifica se uma tecla está na blacklist
+	local function IsKeyBlacklisted(category, key)
+		return BlacklistedKeys[category] and BlacklistedKeys[category][key] or false
+	end
+
+	-- categoria da Tool que está na mão (Melee, Sword, Gun, Fruit) ou nil
+	local function currentToolCategory()
+		local char = player.Character
+		local tool = char and char:FindFirstChildOfClass("Tool")
+		return tool and TOOLTIP_PARA_CATEGORIA[tool.ToolTip] or nil
+	end
+
+	-- usada dentro do Silent Aim: a tecla está bloqueada pra arma atual?
+	local function isKeyCurrentlyBlacklisted(key)
+		if not key then return false end
+		local cat = currentToolCategory()
+		if cat and BlacklistedKeys[cat] and BlacklistedKeys[cat][key] ~= nil then
+			return BlacklistedKeys[cat][key]
+		end
+		return false
+	end
+
+	-- deixa disponível pro seu Silent Aim (se o executor tiver getgenv)
+	pcall(function()
+		local env = getgenv and getgenv()
+		if env then
+			env.SABlacklist = {
+				Set = SetBlacklistKey,
+				IsBlacklisted = IsKeyBlacklisted,
+				IsCurrentlyBlacklisted = isKeyCurrentlyBlacklisted,
+				CurrentCategory = currentToolCategory,
+				Keys = BlacklistedKeys,
+			}
+		end
+	end)
+
+	-- interface
+	criarCartao(pagina, "SA BLACK LIST", "Teclas ligadas aqui são ignoradas pelo Silent Aim, de acordo com o tipo da arma na sua mão.", 0)
+
+	local ordem = 1
+	for _, cat in ipairs(ORDEM_CATEGORIAS) do
+		criarTitulo(pagina, TITULOS[cat], ordem)
+		ordem = ordem + 1
+
+		for _, key in ipairs(TECLAS[cat]) do
+			criarToggle(pagina, cat .. ": Blacklist " .. key, ordem, function(v)
+				SetBlacklistKey(cat, key, v)
+				logar("info", "SA Blacklist " .. cat .. " " .. key .. (v and ": ligada." or ": desligada."))
+			end, false)
+			ordem = ordem + 1
+		end
+	end
+end
+
+----------------------------------------------------------------
+-- INTRO / LOADING (roda antes do botão do menu aparecer)
+----------------------------------------------------------------
+do
+	local TITULO_GUI = "Sadi"
+	local FRASE = "I Love TheCursedYama"
+	local DURACAO_INTRO = 10 -- segundos (total aproximado)
+	local ETAPAS = { -- { progresso, texto, peso do tempo }
+		{ 0.12, "Iniciando módulos...", 1.0 },
+		{ 0.30, "Carregando interface...", 1.2 },
+		{ 0.52, "Aplicando tema...", 1.2 },
+		{ 0.74, "Preparando funções...", 1.3 },
+		{ 0.92, "Finalizando...", 1.0 },
+		{ 1.00, "Tudo pronto!", 0.6 },
+	}
+
+	local acento = Temas[temaAtualNome].on
+	local acento2 = acento:Lerp(Color3.new(1, 1, 1), 0.4)
+
+	local function mostrarBotao()
+		if not botaoAbrir.Parent then return end
+		botaoAbrir.BackgroundTransparency = 1
+		botaoAbrir.ImageTransparency = 1
+		fallbackText.TextTransparency = 1
+		bordaBotao.Transparency = 1
+		botaoAbrir.Visible = true
+		local ti = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(botaoAbrir, ti, { BackgroundTransparency = 0.1, ImageTransparency = 0 }):Play()
+		TweenService:Create(fallbackText, ti, { TextTransparency = 0 }):Play()
+		TweenService:Create(bordaBotao, ti, { Transparency = 0 }):Play()
+	end
+
+	local function rodarIntro()
+		local vp = camera.ViewportSize
+		local escalaBase = math.clamp(math.min(vp.X / 460, vp.Y / 400), 0.55, 1.15)
+		local pular = false
+		local tweenAtual = nil
+
+		local intro = Instance.new("ScreenGui")
+		intro.Name = "Sadi_Intro"
+		intro.IgnoreGuiInset = true
+		intro.ResetOnSpawn = false
+		intro.DisplayOrder = 1000
+		intro.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		intro.Parent = playerGui
+
+		-- fundo escuro com degradê do tema
+		local fundo = Instance.new("Frame")
+		fundo.Size = UDim2.fromScale(1, 1)
+		fundo.BackgroundColor3 = Color3.new(1, 1, 1)
+		fundo.BackgroundTransparency = 1
+		fundo.BorderSizePixel = 0
+		fundo.Active = true
+		fundo.ClipsDescendants = true
+		fundo.Parent = intro
+
+		local fundoGrad = Instance.new("UIGradient")
+		fundoGrad.Color = ColorSequence.new(Color3.fromRGB(8, 8, 14), acento:Lerp(Color3.new(0, 0, 0), 0.82))
+		fundoGrad.Rotation = 45
+		fundoGrad.Parent = fundo
+
+		-- partículas subindo (ambiente)
+		local particulas = {}
+		for _ = 1, 16 do
+			local tam = math.random(3, 6)
+			local alvoTransp = 0.6 + math.random() * 0.25
+			local xScale = math.random()
+			local p = Instance.new("Frame")
+			p.Size = UDim2.fromOffset(tam, tam)
+			p.Position = UDim2.fromScale(xScale, 0.75 + math.random() * 0.4)
+			p.BackgroundColor3 = acento2
+			p.BackgroundTransparency = 1
+			p.BorderSizePixel = 0
+			p.Parent = fundo
+			arredondar(p, 3)
+			TweenService:Create(p, TweenInfo.new(4 + math.random() * 4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), {
+				Position = UDim2.fromScale(xScale, -0.1),
+			}):Play()
+			table.insert(particulas, { p = p, alvo = alvoTransp })
+		end
+
+		-- cartão central (CanvasGroup pra dar fade em tudo junto)
+		local cartao = Instance.new("CanvasGroup")
+		cartao.AnchorPoint = Vector2.new(0.5, 0.5)
+		cartao.Position = UDim2.fromScale(0.5, 0.5)
+		cartao.Size = UDim2.fromOffset(380, 320)
+		cartao.BackgroundTransparency = 1
+		cartao.GroupTransparency = 1
+		cartao.Parent = intro
+
+		local escala = Instance.new("UIScale")
+		escala.Scale = escalaBase
+		escala.Parent = cartao
+
+		-- logo com aro girando
+		local logo = Instance.new("Frame")
+		logo.AnchorPoint = Vector2.new(0.5, 0.5)
+		logo.Size = UDim2.fromOffset(84, 84)
+		logo.Position = UDim2.new(0.5, 0, 0, 66)
+		logo.BackgroundColor3 = Color3.fromRGB(18, 16, 28)
+		logo.BorderSizePixel = 0
+		logo.ZIndex = 2
+		logo.Parent = cartao
+		arredondar(logo, 42)
+
+		local aro = Instance.new("UIStroke")
+		aro.Thickness = 3
+		aro.Color = Color3.new(1, 1, 1)
+		aro.Parent = logo
+
+		local aroGrad = Instance.new("UIGradient")
+		aroGrad.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, acento),
+			ColorSequenceKeypoint.new(0.5, acento2),
+			ColorSequenceKeypoint.new(1, acento),
+		})
+		aroGrad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.6, 0.25),
+			NumberSequenceKeypoint.new(1, 0.95),
+		})
+		aroGrad.Parent = aro
+		TweenService:Create(aroGrad, TweenInfo.new(1.4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), { Rotation = 360 }):Play()
+
+		local inicial = Instance.new("TextLabel")
+		inicial.Size = UDim2.fromScale(1, 1)
+		inicial.BackgroundTransparency = 1
+		inicial.Text = string.upper(string.sub(TITULO_GUI, 1, 1))
+		inicial.TextColor3 = Color3.new(1, 1, 1)
+		inicial.TextSize = 40
+		inicial.Font = Enum.Font.GothamBlack
+		inicial.ZIndex = 3
+		inicial.Parent = logo
+
+		-- anéis de pulso (ficam acima do título só até sumirem, não chegam nas letras)
+		for i = 0, 1 do
+			local anel = Instance.new("Frame")
+			anel.AnchorPoint = Vector2.new(0.5, 0.5)
+			anel.Size = UDim2.fromOffset(84, 84)
+			anel.Position = UDim2.new(0.5, 0, 0, 66)
+			anel.BackgroundTransparency = 1
+			anel.BorderSizePixel = 0
+			anel.ZIndex = 1
+			anel.Parent = cartao
+			arredondar(anel, 100)
+			local st = Instance.new("UIStroke")
+			st.Thickness = 2
+			st.Color = acento
+			st.Parent = anel
+			local ti = TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, -1, false, i * 0.8)
+			TweenService:Create(anel, ti, { Size = UDim2.fromOffset(124, 124) }):Play()
+			TweenService:Create(st, ti, { Transparency = 1 }):Play()
+		end
+
+		-- título (letra por letra, com largura automática de cada letra)
+		local fila = Instance.new("Frame")
+		fila.Size = UDim2.new(1, 0, 0, 62)
+		fila.Position = UDim2.fromOffset(0, 140)
+		fila.BackgroundTransparency = 1
+		fila.Parent = cartao
+
+		local layFila = Instance.new("UIListLayout")
+		layFila.FillDirection = Enum.FillDirection.Horizontal
+		layFila.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layFila.VerticalAlignment = Enum.VerticalAlignment.Center
+		layFila.SortOrder = Enum.SortOrder.LayoutOrder
+		layFila.Padding = UDim.new(0, 2)
+		layFila.Parent = fila
+
+		local letras = {}
+		for i = 1, #TITULO_GUI do
+			local holder = Instance.new("Frame")
+			holder.AutomaticSize = Enum.AutomaticSize.X
+			holder.Size = UDim2.fromOffset(0, 62)
+			holder.BackgroundTransparency = 1
+			holder.LayoutOrder = i
+			holder.Parent = fila
+
+			local l = Instance.new("TextLabel")
+			l.AutomaticSize = Enum.AutomaticSize.X
+			l.Size = UDim2.fromOffset(0, 62)
+			l.Position = UDim2.fromOffset(0, 26)
+			l.BackgroundTransparency = 1
+			l.Text = string.sub(TITULO_GUI, i, i)
+			l.TextColor3 = Color3.new(1, 1, 1)
+			l.TextTransparency = 1
+			l.TextSize = 54
+			l.Font = Enum.Font.GothamBlack
+			l.RichText = false
+			l.Parent = holder
+			table.insert(letras, l)
+		end
+
+		-- linha decorativa
+		local linha = Instance.new("Frame")
+		linha.AnchorPoint = Vector2.new(0.5, 0.5)
+		linha.Position = UDim2.new(0.5, 0, 0, 212)
+		linha.Size = UDim2.fromOffset(0, 2)
+		linha.BackgroundColor3 = acento2
+		linha.BorderSizePixel = 0
+		linha.Parent = cartao
+		local linhaGrad = Instance.new("UIGradient")
+		linhaGrad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.5, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		linhaGrad.Parent = linha
+
+		-- frase
+		local sub = Instance.new("TextLabel")
+		sub.Size = UDim2.new(1, 0, 0, 24)
+		sub.Position = UDim2.fromOffset(0, 222)
+		sub.BackgroundTransparency = 1
+		sub.Text = FRASE
+		sub.TextColor3 = acento2
+		sub.TextTransparency = 1
+		sub.TextSize = 16
+		sub.Font = Enum.Font.GothamMedium
+		sub.Parent = cartao
+
+		-- barra de progresso
+		local trilho = Instance.new("Frame")
+		trilho.AnchorPoint = Vector2.new(0.5, 0.5)
+		trilho.Position = UDim2.new(0.5, 0, 0, 276)
+		trilho.Size = UDim2.fromOffset(280, 6)
+		trilho.BackgroundColor3 = Color3.fromRGB(34, 32, 48)
+		trilho.BorderSizePixel = 0
+		trilho.Parent = cartao
+		arredondar(trilho, 3)
+
+		local fill = Instance.new("Frame")
+		fill.Size = UDim2.fromScale(0, 1)
+		fill.BackgroundColor3 = Color3.new(1, 1, 1)
+		fill.BorderSizePixel = 0
+		fill.Parent = trilho
+		arredondar(fill, 3)
+		local fillGrad = Instance.new("UIGradient")
+		fillGrad.Color = ColorSequence.new(acento, acento2)
+		fillGrad.Parent = fill
+
+		local status = Instance.new("TextLabel")
+		status.Size = UDim2.fromOffset(210, 18)
+		status.Position = UDim2.new(0.5, -140, 0, 288)
+		status.BackgroundTransparency = 1
+		status.Text = ""
+		status.TextColor3 = Color3.fromRGB(170, 168, 190)
+		status.TextSize = 12
+		status.Font = Enum.Font.Gotham
+		status.TextXAlignment = Enum.TextXAlignment.Left
+		status.Parent = cartao
+
+		local pct = Instance.new("TextLabel")
+		pct.Size = UDim2.fromOffset(60, 18)
+		pct.Position = UDim2.new(0.5, 80, 0, 288)
+		pct.BackgroundTransparency = 1
+		pct.Text = "0%"
+		pct.TextColor3 = acento2
+		pct.TextSize = 12
+		pct.Font = Enum.Font.GothamBold
+		pct.TextXAlignment = Enum.TextXAlignment.Right
+		pct.Parent = cartao
+
+		-- botão "Pular" (aparece depois de alguns segundos)
+		local botaoPular = Instance.new("TextButton")
+		botaoPular.AnchorPoint = Vector2.new(1, 1)
+		botaoPular.Position = UDim2.new(1, -20, 1, -20)
+		botaoPular.Size = UDim2.fromOffset(86, 34)
+		botaoPular.BackgroundColor3 = Color3.fromRGB(28, 26, 40)
+		botaoPular.BackgroundTransparency = 0.2
+		botaoPular.BorderSizePixel = 0
+		botaoPular.Text = "Pular  ›"
+		botaoPular.TextColor3 = acento2
+		botaoPular.TextSize = 13
+		botaoPular.Font = Enum.Font.GothamBold
+		botaoPular.AutoButtonColor = false
+		botaoPular.Visible = false
+		botaoPular.Parent = fundo
+		arredondar(botaoPular, 10)
+		local pularStroke = Instance.new("UIStroke")
+		pularStroke.Color = acento
+		pularStroke.Transparency = 0.5
+		pularStroke.Parent = botaoPular
+
+		botaoPular.MouseButton1Click:Connect(function()
+			pular = true
+			if tweenAtual then tweenAtual:Cancel() end
+		end)
+		task.delay(2, function()
+			if not pular and botaoPular.Parent then botaoPular.Visible = true end
+		end)
+
+		-- entrada
+		TweenService:Create(fundo, TweenInfo.new(0.4), { BackgroundTransparency = 0.04 }):Play()
+		for _, d in ipairs(particulas) do
+			TweenService:Create(d.p, TweenInfo.new(0.8), { BackgroundTransparency = d.alvo }):Play()
+		end
+		TweenService:Create(cartao, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 }):Play()
+		task.wait(0.5)
+
+		for i, l in ipairs(letras) do
+			task.delay((i - 1) * 0.14, function()
+				TweenService:Create(l, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = UDim2.fromOffset(0, 0),
+					TextTransparency = 0,
+				}):Play()
+			end)
+		end
+		task.delay(#letras * 0.14, function()
+			TweenService:Create(linha, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(220, 2) }):Play()
+			TweenService:Create(sub, TweenInfo.new(0.6), { TextTransparency = 0.05 }):Play()
+		end)
+		task.wait(0.8)
+
+		-- progresso (o tempo das etapas é calculado pra fechar ~DURACAO_INTRO segundos)
+		local valor = Instance.new("NumberValue")
+		valor.Parent = intro
+		valor.Changed:Connect(function(x)
+			fill.Size = UDim2.fromScale(x, 1)
+			pct.Text = math.floor(x * 100 + 0.5) .. "%"
+		end)
+
+		local somaPesos = 0
+		for _, et in ipairs(ETAPAS) do somaPesos = somaPesos + et[3] end
+		local tempoProgresso = math.max(1, DURACAO_INTRO - (0.5 + 0.8 + 0.6 + 0.5))
+
+		for _, et in ipairs(ETAPAS) do
+			if pular then break end
+			status.Text = et[2]
+			local dur = tempoProgresso * et[3] / somaPesos
+			tweenAtual = TweenService:Create(valor, TweenInfo.new(dur, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Value = et[1] })
+			tweenAtual:Play()
+			tweenAtual.Completed:Wait()
+		end
+		tweenAtual = nil
+
+		if pular then
+			valor.Value = 1
+			status.Text = "Tudo pronto!"
+		end
+		botaoPular.Visible = false
+		task.wait(pular and 0.15 or 0.6)
+
+		-- saída
+		local tiSaida = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(escala, tiSaida, { Scale = escalaBase * 1.08 }):Play()
+		TweenService:Create(cartao, tiSaida, { GroupTransparency = 1 }):Play()
+		for _, d in ipairs(particulas) do
+			TweenService:Create(d.p, tiSaida, { BackgroundTransparency = 1 }):Play()
+		end
+		local fim = TweenService:Create(fundo, TweenInfo.new(0.5), { BackgroundTransparency = 1 })
+		fim:Play()
+		fim.Completed:Wait()
+		intro:Destroy()
+	end
+
+	task.spawn(function()
+		pcall(rodarIntro)
+		-- se algo der errado na intro, remove ela e mostra o botão mesmo assim
+		pcall(function()
+			local g = playerGui:FindFirstChild("Sadi_Intro")
+			if g then g:Destroy() end
+		end)
+		mostrarBotao()
+	end)
+end
 
 ----------------------------------------------------------------
 -- INICIALIZAÇÃO
