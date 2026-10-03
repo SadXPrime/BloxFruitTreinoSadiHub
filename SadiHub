@@ -1793,6 +1793,163 @@ criarToggle(paginaFull, "Anti Lava / Dano", 9, function(on)
 end, false)
 
 ----------------------------------------------------------------
+-- BIG SKIN AURA (corpo gigante cinza, sem acessórios/roupas)
+----------------------------------------------------------------
+local bigSkinBugEnabled = false
+local bigSkinBugOriginal = {}
+local bigSkinBugConnections = {}
+
+local function applyBigSkin(char)
+	local data = bigSkinBugOriginal[char]
+	if not data then return end
+
+	-- remove acessórios e roupas
+	for item in pairs(data.accessories) do
+		item.Parent = nil
+	end
+
+	-- aumenta e modifica as partes do corpo
+	for part in pairs(data.parts) do
+		part.Color = Color3.fromRGB(128, 128, 128)
+		part.Material = Enum.Material.SmoothPlastic
+		part.CanCollide = true
+
+		if part:IsA("MeshPart") then
+			part.TextureID = ""
+		end
+
+		local nameLower = part.Name:lower()
+
+		if nameLower:match("torso") then
+			part.Size = Vector3.new(5.6, 4.4, 3.4)
+		elseif nameLower:match("leg") or nameLower:match("arm") then
+			part.Size = Vector3.new(2.6, 4.8, 2.6)
+		elseif nameLower == "head" then
+			part.Size = Vector3.new(2.2, 2.2, 2.2)
+			local mesh = part:FindFirstChildOfClass("SpecialMesh")
+			if mesh then
+				mesh.Parent = nil
+			end
+		end
+	end
+
+	-- ajusta as juntas (Motor6D)
+	for joint, saved in pairs(data.joints) do
+		local jName = joint.Name:lower()
+		local c0 = saved.C0
+
+		if jName:match("rightshoulder") or jName:match("right shoulder") then
+			joint.C0 = c0 * CFrame.new(2.4, 0.6, 0)
+		elseif jName:match("leftshoulder") or jName:match("left shoulder") then
+			joint.C0 = c0 * CFrame.new(-2.4, 0.6, 0)
+		elseif jName:match("righthip") or jName:match("right hip") then
+			joint.C0 = c0 * CFrame.new(0.9, -0.6, 0)
+		elseif jName:match("lefthip") or jName:match("left hip") then
+			joint.C0 = c0 * CFrame.new(-0.9, -0.6, 0)
+		elseif jName:match("neck") then
+			joint.C0 = c0 * CFrame.new(0, 0.8, 0)
+		end
+	end
+end
+
+local function saveBigSkinOriginal(char)
+	local data = { parts = {}, accessories = {}, joints = {} }
+
+	for _, item in ipairs(char:GetDescendants()) do
+		if item:IsA("Accessory") or item:IsA("Clothing") or item:IsA("ShirtGraphic") or item:IsA("Decal") then
+			data.accessories[item] = { Parent = item.Parent }
+		elseif item:IsA("BasePart") and item.Name ~= "HumanoidRootPart" then
+			local saved = {
+				Size = item.Size,
+				Color = item.Color,
+				Material = item.Material,
+				CanCollide = item.CanCollide,
+				TextureID = item:IsA("MeshPart") and item.TextureID or nil,
+			}
+
+			if item.Name == "Head" then
+				saved.Mesh = item:FindFirstChildOfClass("SpecialMesh")
+			end
+
+			data.parts[item] = saved
+		elseif item:IsA("Motor6D") and item.Part0 and item.Part1 then
+			data.joints[item] = { C0 = item.C0, C1 = item.C1 }
+		end
+	end
+
+	bigSkinBugOriginal[char] = data
+end
+
+local function restoreBigSkin(char)
+	local data = bigSkinBugOriginal[char]
+	if not data then return end
+
+	-- restaura acessórios
+	for item, saved in pairs(data.accessories) do
+		if saved.Parent then
+			item.Parent = saved.Parent
+		end
+	end
+
+	-- restaura partes do corpo
+	for part, saved in pairs(data.parts) do
+		part.Size = saved.Size
+		part.Color = saved.Color
+		part.Material = saved.Material
+		part.CanCollide = saved.CanCollide
+
+		if saved.TextureID and part:IsA("MeshPart") then
+			part.TextureID = saved.TextureID
+		end
+
+		if saved.Mesh and not part:FindFirstChildOfClass("SpecialMesh") then
+			saved.Mesh.Parent = part
+		end
+	end
+
+	-- restaura juntas
+	for joint, saved in pairs(data.joints) do
+		joint.C0 = saved.C0
+		joint.C1 = saved.C1
+	end
+
+	bigSkinBugOriginal[char] = nil
+end
+
+local function onCharAddedBigSkin(char)
+	if not bigSkinBugEnabled then return end
+	task.wait(0.4)
+	if not bigSkinBugEnabled then return end
+	saveBigSkinOriginal(char)
+	applyBigSkin(char)
+end
+
+local function enableBigSkin()
+	if bigSkinBugEnabled then return end
+	bigSkinBugEnabled = true
+
+	if player.Character then
+		saveBigSkinOriginal(player.Character)
+		applyBigSkin(player.Character)
+	end
+
+	bigSkinBugConnections.CharAdded = player.CharacterAdded:Connect(onCharAddedBigSkin)
+end
+
+local function disableBigSkin()
+	bigSkinBugEnabled = false
+
+	if bigSkinBugConnections.CharAdded then
+		bigSkinBugConnections.CharAdded:Disconnect()
+		bigSkinBugConnections.CharAdded = nil
+	end
+
+	if player.Character then
+		restoreBigSkin(player.Character)
+	end
+end
+
+----------------------------------------------------------------
 -- ABA TREINO
 ----------------------------------------------------------------
 criarTitulo(paginaTreino, "Box Soru", 0)
@@ -1826,6 +1983,18 @@ criarToggle(paginaTreino, "Pulo Alto", 4, function(on)
 	if hum then
 		hum.UseJumpPower = true
 		hum.JumpPower = on and 90 or 50
+	end
+end, false)
+
+criarTitulo(paginaTreino, "Skin", 5)
+
+criarToggle(paginaTreino, "Big Skin Aura", 6, function(on)
+	if on then
+		enableBigSkin()
+		logar("info", "Big Skin Aura ativado.")
+	else
+		disableBigSkin()
+		logar("info", "Big Skin Aura desativado (corpo restaurado).")
 	end
 end, false)
 
@@ -2206,6 +2375,7 @@ local function sairDoMenu()
 	pcall(function()
 		killAuraAtivo = false
 	end)
+	pcall(disableBigSkin)
 	pcall(function()
 		airFlashHabilitado = false
 		for _, v in ipairs(workspace:GetChildren()) do
