@@ -62,15 +62,13 @@ if existente then existente:Destroy() end
 ----------------------------------------------------------------
 -- SISTEMA BOX SORU (Aumenta o TAMANHO DO TORSO até 20000%)
 ----------------------------------------------------------------
-local boxSoruAtivo = false
-local boxSoruPorcentagem = 10
-local ultimoUpdateBoxSoru = 0
-
+local BoxSoru = { ativo = false, porcentagem = 10, ultimo = 0 } -- estado e funções do Box Soru
+;(function()
 local TAMANHO_ORIGINAL_R6 = Vector3.new(2, 2, 1)
 local TAMANHO_ORIGINAL_R15 = Vector3.new(2, 2, 1)
 
 local function calcularNovoTamanho(tamanhoOriginal)
-	local multiplicador = 1 + (boxSoruPorcentagem / 100)
+	local multiplicador = 1 + (BoxSoru.porcentagem / 100)
 	return Vector3.new(
 		tamanhoOriginal.X * multiplicador,
 		tamanhoOriginal.Y * multiplicador,
@@ -112,7 +110,7 @@ local function removerAumentoTorso(character)
 	end
 end
 
-local function gerenciarTamanhosGlobais(ativo)
+function BoxSoru.gerenciar(ativo)
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player and p.Character then
 			if ativo then aplicarAumentoTorso(p.Character) else removerAumentoTorso(p.Character) end
@@ -126,7 +124,7 @@ local function gerenciarTamanhosGlobais(ativo)
 	end
 end
 
-local function atualizarTamanhosGlobais()
+function BoxSoru.atualizarTodos()
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player and p.Character then
 			aplicarAumentoTorso(p.Character)
@@ -145,19 +143,19 @@ conectar(Players.PlayerAdded, function(p)
 	
 	p.CharacterAdded:Connect(function(char)
 		task.wait(0.5)
-		if boxSoruAtivo then aplicarAumentoTorso(char) end
+		if BoxSoru.ativo then aplicarAumentoTorso(char) end
 	end)
 end)
 
 conectar(workspace.DescendantAdded, function(desc)
-	if boxSoruAtivo and desc:IsA("Model") and desc:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(desc) then
+	if BoxSoru.ativo and desc:IsA("Model") and desc:FindFirstChild("Humanoid") and not Players:GetPlayerFromCharacter(desc) then
 		task.wait(0.2)
 		aplicarAumentoTorso(desc)
 	end
 end)
 
 conectar(workspace.DescendantAdded, function(desc)
-	if boxSoruAtivo and (desc.Name == "Torso" or desc.Name == "UpperTorso") then
+	if BoxSoru.ativo and (desc.Name == "Torso" or desc.Name == "UpperTorso") then
 		local character = desc.Parent
 		if character and character:IsA("Model") and character:FindFirstChild("Humanoid") then
 			if Players:GetPlayerFromCharacter(character) ~= player then
@@ -168,13 +166,14 @@ conectar(workspace.DescendantAdded, function(desc)
 	end
 end)
 
-local function atualizarSistemaBoxSoru()
-	if boxSoruAtivo then
-		gerenciarTamanhosGlobais(true)
+function BoxSoru.atualizarSistema()
+	if BoxSoru.ativo then
+		BoxSoru.gerenciar(true)
 	else
-		gerenciarTamanhosGlobais(false)
+		BoxSoru.gerenciar(false)
 	end
 end
+end)()
 
 ----------------------------------------------------------------
 -- TEMAS DE COR
@@ -192,6 +191,19 @@ local Temas = {
 	["Roxo Cósmico"] = { on = Color3.fromRGB(138, 43, 226), fundo = Color3.fromRGB(18, 14, 30), topo = Color3.fromRGB(24, 18, 40), item = Color3.fromRGB(30, 22, 48), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 250), vfx = true, vfxCores = {Color3.fromRGB(138, 43, 226), Color3.fromRGB(30, 30, 60)} },
 	["Roxo com VFX"] = { on = Color3.fromRGB(160, 90, 255), fundo = Color3.fromRGB(20, 16, 32), topo = Color3.fromRGB(26, 20, 42), item = Color3.fromRGB(32, 24, 50), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 250), vfx = true, vfxCores = {Color3.fromRGB(160, 90, 255), Color3.fromRGB(60, 200, 255)} },
 	["Rosa com VFX"] = { on = Color3.fromRGB(255, 105, 180), fundo = Color3.fromRGB(30, 16, 26), topo = Color3.fromRGB(38, 20, 32), item = Color3.fromRGB(46, 24, 38), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(250, 235, 242), vfx = true, vfxCores = {Color3.fromRGB(255, 105, 180), Color3.fromRGB(180, 90, 255)} },
+	["Neon Ciano"] = { on = Color3.fromRGB(0, 229, 255), fundo = Color3.fromRGB(8, 18, 24), topo = Color3.fromRGB(12, 26, 34), item = Color3.fromRGB(16, 34, 44), off = Color3.fromRGB(60, 78, 90), texto = Color3.fromRGB(230, 248, 252), vfx = true, vfxCores = {Color3.fromRGB(0, 229, 255), Color3.fromRGB(120, 80, 255), Color3.fromRGB(0, 229, 255)} },
+	["Sakura VFX"] = { on = Color3.fromRGB(255, 150, 190), fundo = Color3.fromRGB(30, 16, 24), topo = Color3.fromRGB(40, 20, 31), item = Color3.fromRGB(50, 25, 38), off = Color3.fromRGB(82, 64, 76), texto = Color3.fromRGB(252, 238, 244), vfx = true, vfxCores = {Color3.fromRGB(255, 150, 190), Color3.fromRGB(255, 225, 238), Color3.fromRGB(255, 150, 190)} },
+	["Esmeralda VFX"] = { on = Color3.fromRGB(0, 230, 140), fundo = Color3.fromRGB(8, 24, 18), topo = Color3.fromRGB(11, 32, 24), item = Color3.fromRGB(14, 40, 30), off = Color3.fromRGB(58, 84, 72), texto = Color3.fromRGB(230, 250, 242), vfx = true, vfxCores = {Color3.fromRGB(0, 230, 140), Color3.fromRGB(0, 190, 255), Color3.fromRGB(0, 230, 140)} },
+	["Fogo VFX"] = { on = Color3.fromRGB(255, 110, 40), fundo = Color3.fromRGB(28, 12, 8), topo = Color3.fromRGB(38, 16, 10), item = Color3.fromRGB(48, 20, 12), off = Color3.fromRGB(88, 62, 54), texto = Color3.fromRGB(255, 240, 228), vfx = true, vfxCores = {Color3.fromRGB(255, 60, 20), Color3.fromRGB(255, 200, 40), Color3.fromRGB(255, 60, 20)} },
+	["Oceano VFX"] = { on = Color3.fromRGB(40, 160, 255), fundo = Color3.fromRGB(7, 16, 32), topo = Color3.fromRGB(10, 22, 42), item = Color3.fromRGB(13, 28, 52), off = Color3.fromRGB(56, 72, 96), texto = Color3.fromRGB(230, 242, 255), vfx = true, vfxCores = {Color3.fromRGB(40, 160, 255), Color3.fromRGB(0, 220, 200), Color3.fromRGB(40, 160, 255)} },
+	["Aurora VFX"] = { on = Color3.fromRGB(120, 255, 200), fundo = Color3.fromRGB(10, 18, 28), topo = Color3.fromRGB(14, 25, 38), item = Color3.fromRGB(18, 32, 48), off = Color3.fromRGB(64, 80, 96), texto = Color3.fromRGB(232, 252, 246), vfx = true, vfxCores = {Color3.fromRGB(80, 255, 170), Color3.fromRGB(150, 110, 255), Color3.fromRGB(60, 200, 255), Color3.fromRGB(80, 255, 170)} },
+	["Pôr do Sol VFX"] = { on = Color3.fromRGB(255, 120, 100), fundo = Color3.fromRGB(28, 14, 26), topo = Color3.fromRGB(38, 18, 34), item = Color3.fromRGB(48, 22, 42), off = Color3.fromRGB(88, 62, 82), texto = Color3.fromRGB(255, 240, 238), vfx = true, vfxCores = {Color3.fromRGB(255, 150, 60), Color3.fromRGB(255, 80, 140), Color3.fromRGB(150, 80, 255), Color3.fromRGB(255, 150, 60)} },
+	["Arco-íris VFX"] = { on = Color3.fromRGB(190, 130, 255), fundo = Color3.fromRGB(17, 15, 26), topo = Color3.fromRGB(23, 20, 36), item = Color3.fromRGB(29, 25, 46), off = Color3.fromRGB(72, 68, 92), texto = Color3.fromRGB(244, 240, 252), vfx = true, vfxCores = {Color3.fromRGB(255, 70, 70), Color3.fromRGB(255, 200, 50), Color3.fromRGB(80, 230, 110), Color3.fromRGB(60, 200, 255), Color3.fromRGB(150, 90, 255), Color3.fromRGB(255, 70, 70)} },
+	["Dourado Real VFX"] = { on = Color3.fromRGB(240, 190, 60), fundo = Color3.fromRGB(24, 19, 10), topo = Color3.fromRGB(32, 26, 14), item = Color3.fromRGB(40, 33, 18), off = Color3.fromRGB(86, 76, 54), texto = Color3.fromRGB(255, 246, 224), vfx = true, vfxCores = {Color3.fromRGB(240, 190, 60), Color3.fromRGB(255, 244, 200), Color3.fromRGB(240, 190, 60)} },
+	["Sangue VFX"] = { on = Color3.fromRGB(230, 30, 60), fundo = Color3.fromRGB(20, 7, 11), topo = Color3.fromRGB(28, 9, 14), item = Color3.fromRGB(36, 11, 18), off = Color3.fromRGB(80, 52, 58), texto = Color3.fromRGB(252, 232, 236), vfx = true, vfxCores = {Color3.fromRGB(230, 30, 60), Color3.fromRGB(110, 10, 30), Color3.fromRGB(230, 30, 60)} },
+	["Galáxia VFX"] = { on = Color3.fromRGB(150, 100, 255), fundo = Color3.fromRGB(9, 7, 22), topo = Color3.fromRGB(13, 10, 32), item = Color3.fromRGB(17, 13, 42), off = Color3.fromRGB(62, 56, 92), texto = Color3.fromRGB(238, 234, 255), vfx = true, vfxCores = {Color3.fromRGB(150, 100, 255), Color3.fromRGB(60, 120, 255), Color3.fromRGB(255, 100, 200), Color3.fromRGB(150, 100, 255)} },
+	["Personalizado"] = { on = Color3.fromRGB(147, 112, 219), fundo = Color3.fromRGB(15, 11, 22), topo = Color3.fromRGB(21, 16, 31), item = Color3.fromRGB(26, 20, 39), off = Color3.fromRGB(70, 70, 88), texto = Color3.fromRGB(240, 235, 250), vfx = true, vfxCores = {Color3.fromRGB(147, 112, 219), Color3.fromRGB(150, 219, 112), Color3.fromRGB(147, 112, 219)} },
+	["Matrix VFX"] = { on = Color3.fromRGB(0, 255, 100), fundo = Color3.fromRGB(4, 14, 8), topo = Color3.fromRGB(6, 20, 12), item = Color3.fromRGB(8, 27, 16), off = Color3.fromRGB(44, 74, 56), texto = Color3.fromRGB(214, 255, 228), vfx = true, vfxCores = {Color3.fromRGB(0, 255, 100), Color3.fromRGB(0, 90, 40), Color3.fromRGB(0, 255, 100)} },
 }
 
 local temaAtualNome = TEMA_PADRAO
@@ -202,6 +214,28 @@ local function arredondar(obj, raio)
 	c.CornerRadius = UDim.new(0, raio)
 	c.Parent = obj
 	return c
+end
+
+-- efeitos visuais (VFX): tabela compartilhada; as funções VFX.tema/abrir/aba são definidas mais abaixo
+local VFX = {}
+
+-- monta um ColorSequence com N cores espalhadas igualmente
+VFX.seq = function(cores)
+	local n = #cores
+	if n == 1 then return ColorSequence.new(cores[1], cores[1]) end
+	local pontos = {}
+	for i, c in ipairs(cores) do
+		table.insert(pontos, ColorSequenceKeypoint.new((i - 1) / (n - 1), c))
+	end
+	return ColorSequence.new(pontos)
+end
+
+-- degradê sutil que dá profundidade em cartões, toggles e sliders
+VFX.prof = function(obj)
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(212, 212, 224))
+	g.Rotation = 90
+	g.Parent = obj
 end
 
 ----------------------------------------------------------------
@@ -442,6 +476,10 @@ local function selecionarAba(nome)
 	for n, btn in pairs(botoesAbas) do
 		local selecionado = (n == nome)
 		local tema = Temas[temaAtualNome]
+		local skAba = btn:FindFirstChildOfClass("UIStroke")
+		if skAba then
+			TweenService:Create(skAba, TweenInfo.new(0.15), { Transparency = selecionado and 0.1 or 1 }):Play()
+		end
 		TweenService:Create(btn, TweenInfo.new(0.15), {
 			BackgroundColor3 = selecionado and tema.on or tema.item,
 			TextColor3 = selecionado and COR_TEXTO_ABA_ATIVA or tema.texto,
@@ -460,6 +498,8 @@ local function selecionarAba(nome)
 			barraAbas.CanvasPosition = Vector2.new(math.max(0, esquerda - 6), 0)
 		end
 	end
+
+	if VFX.aba then VFX.aba(nome) end
 end
 
 for i, nome in ipairs(NOMES_ABAS) do
@@ -479,6 +519,27 @@ for i, nome in ipairs(NOMES_ABAS) do
 	padBtn.PaddingLeft = UDim.new(0, 10)
 	padBtn.PaddingRight = UDim.new(0, 10)
 	padBtn.Parent = btn
+
+	-- contorno que aparece na aba ativa
+	local skAba = Instance.new("UIStroke")
+	skAba.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	skAba.Thickness = 1.5
+	skAba.Transparency = 1
+	skAba.Parent = btn
+
+	-- hover
+	btn.MouseEnter:Connect(function()
+		if abaAtual ~= nome then
+			local t = Temas[temaAtualNome]
+			TweenService:Create(btn, TweenInfo.new(0.12), { BackgroundColor3 = t.item:Lerp(t.on, 0.35) }):Play()
+		end
+	end)
+	btn.MouseLeave:Connect(function()
+		if abaAtual ~= nome then
+			TweenService:Create(btn, TweenInfo.new(0.12), { BackgroundColor3 = Temas[temaAtualNome].item }):Play()
+		end
+	end)
+
 	btn.MouseButton1Click:Connect(function() selecionarAba(nome) end)
 	botoesAbas[nome] = btn
 end
@@ -519,6 +580,7 @@ local function criarCartao(pai, tituloTexto, corpoTexto, ordem)
 	item.BorderSizePixel = 0
 	item.Parent = pai
 	arredondar(item, 12)
+	VFX.prof(item)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 1
@@ -574,6 +636,7 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 	item.BorderSizePixel = 0
 	item.Parent = pai
 	arredondar(item, 12)
+	VFX.prof(item)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 1
@@ -607,6 +670,14 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 	bolinha.Parent = trilho
 	arredondar(bolinha, 9)
 
+	-- brilho (aura) em volta do trilho quando o toggle está ligado
+	local glow = Instance.new("UIStroke")
+	glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	glow.Thickness = 2
+	glow.Color = Temas[temaAtualNome].on
+	glow.Transparency = estado and 0.45 or 1
+	glow.Parent = trilho
+
 	item.MouseEnter:Connect(function()
 		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.3 }):Play()
 	end)
@@ -614,13 +685,14 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.75 }):Play()
 	end)
 
-	local registro = { item = item, stroke = stroke, label = label, trilho = trilho, estado = function() return estado end }
+	local registro = { item = item, stroke = stroke, label = label, trilho = trilho, glow = glow, estado = function() return estado end }
 	table.insert(registroToggles, registro)
 
 	trilho.MouseButton1Click:Connect(function()
 		estado = not estado
 		local tema = Temas[temaAtualNome]
 		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
+		TweenService:Create(glow, tweenInfo, { Transparency = estado and 0.45 or 1 }):Play()
 		TweenService:Create(bolinha, tweenInfo, {
 			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 		}):Play()
@@ -632,6 +704,7 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 		estado = novo
 		local tema = Temas[temaAtualNome]
 		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
+		TweenService:Create(glow, tweenInfo, { Transparency = estado and 0.45 or 1 }):Play()
 		TweenService:Create(bolinha, tweenInfo, {
 			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 		}):Play()
@@ -648,6 +721,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 	item.BorderSizePixel = 0
 	item.Parent = pai
 	arredondar(item, 12)
+	VFX.prof(item)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 1
@@ -691,6 +765,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 	preenchimento.BorderSizePixel = 0
 	preenchimento.Parent = trilho
 	arredondar(preenchimento, 4)
+	VFX.prof(preenchimento)
 
 	local bolinha = Instance.new("Frame")
 	bolinha.Size = UDim2.fromOffset(18, 18)
@@ -716,6 +791,14 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
 		valorLabel.Text = valorAtual .. sufixo
 		callback(valorAtual)
+	end
+
+	-- muda o valor do slider por código (sem chamar o callback)
+	local function definirValor(v)
+		local percent = math.clamp((v - minVal) / (maxVal - minVal), 0, 1)
+		preenchimento.Size = UDim2.fromScale(percent, 1)
+		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
+		valorLabel.Text = math.floor(v) .. sufixo
 	end
 
 	-- área de toque maior que a barrinha (fica fácil de pegar no celular)
@@ -752,7 +835,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 		trilho = trilho, preenchimento = preenchimento, bolinha = bolinha, strokeBolinha = strokeBolinha,
 	}
 	table.insert(registroSliders, registro)
-	return item
+	return item, definirValor
 end
 
 ----------------------------------------------------------------
@@ -788,6 +871,49 @@ local function criarBotao(pai, texto, tamanho, posicao, ordem, destaque)
 
 	table.insert(registroBotoes, { btn = btn, stroke = stroke, destaque = destaque })
 	return btn
+end
+
+-- linha de botões onde só um fica selecionado (ex.: estilo das partículas)
+VFX.seletor = function(pai, ordem, opcoes, inicial, aoMudar)
+	local linha = Instance.new("Frame")
+	linha.Size = UDim2.new(1, 0, 0, 34)
+	linha.LayoutOrder = ordem
+	linha.BackgroundTransparency = 1
+	linha.Parent = pai
+
+	local lay = Instance.new("UIListLayout")
+	lay.FillDirection = Enum.FillDirection.Horizontal
+	lay.Padding = UDim.new(0, 6)
+	lay.SortOrder = Enum.SortOrder.LayoutOrder
+	lay.Parent = linha
+
+	local regs, botoes = {}, {}
+	local n = #opcoes
+	local selecionado = inicial
+
+	local function pintar()
+		local tema = Temas[temaAtualNome]
+		for i, b in ipairs(botoes) do
+			local sel = (i == selecionado)
+			regs[i].destaque = sel
+			b.BackgroundColor3 = sel and tema.on or tema.item
+			b.TextColor3 = sel and Color3.new(1, 1, 1) or tema.texto
+		end
+	end
+
+	for i, nome in ipairs(opcoes) do
+		local b = criarBotao(linha, nome, UDim2.new(1 / n, -(6 * (n - 1)) / n, 1, 0), nil, i, false)
+		regs[i] = registroBotoes[#registroBotoes]
+		botoes[i] = b
+		b.MouseButton1Click:Connect(function()
+			selecionado = i
+			pintar()
+			aoMudar(i, nome)
+		end)
+	end
+
+	pintar()
+	return linha
 end
 
 local TIPOS_LOG = {
@@ -1134,6 +1260,11 @@ local function logar(tipo, msg)
 		atualizarVazio()
 		rolarParaFim()
 	end)
+
+	-- aviso bonito na tela quando algo é ligado/desligado
+	if tipo == "info" and VFX.toast then
+		pcall(VFX.toast, tostring(msg))
+	end
 
 	emLog = false
 end
@@ -2607,22 +2738,22 @@ end)()
 criarTitulo(paginaTreino, "Box Soru", 0)
 
 criarToggle(paginaTreino, "Box Soru Treino air", 1, function(estado)
-	boxSoruAtivo = estado
-	atualizarSistemaBoxSoru()
+	BoxSoru.ativo = estado
+	BoxSoru.atualizarSistema()
 end, false)
 
 criarSlider(paginaTreino, "Tamanho do Torso", 2, 10, 20000, 10, function(novoValor)
-	boxSoruPorcentagem = novoValor
-	if not boxSoruAtivo then return end
+	BoxSoru.porcentagem = novoValor
+	if not BoxSoru.ativo then return end
 	local agora = os.clock()
-	if agora - ultimoUpdateBoxSoru > 0.2 then
-		ultimoUpdateBoxSoru = agora
-		atualizarTamanhosGlobais()
+	if agora - BoxSoru.ultimo > 0.2 then
+		BoxSoru.ultimo = agora
+		BoxSoru.atualizarTodos()
 	else
 		-- garante que o valor final do slider seja aplicado
 		task.delay(0.25, function()
-			if boxSoruAtivo and boxSoruPorcentagem == novoValor then
-				atualizarTamanhosGlobais()
+			if BoxSoru.ativo and BoxSoru.porcentagem == novoValor then
+				BoxSoru.atualizarTodos()
 			end
 		end)
 	end
@@ -2682,11 +2813,8 @@ local function aplicarTema(nomeTema, instantaneo)
 	TweenService:Create(topo, ti, { BackgroundColor3 = tema.topo }):Play()
 	TweenService:Create(topoFill, ti, { BackgroundColor3 = tema.topo }):Play()
 	TweenService:Create(linhaTopo, ti, { BackgroundColor3 = tema.on }):Play()
-	TweenService:Create(borda, ti, { Color = tema.on }):Play()
-	TweenService:Create(titulo, ti, { TextColor3 = tema.texto }):Play()
 	TweenService:Create(subtitulo, ti, { TextColor3 = tema.texto }):Play()
 	TweenService:Create(botaoAbrir, ti, { BackgroundColor3 = tema.topo }):Play()
-	TweenService:Create(bordaBotao, ti, { Color = tema.on }):Play()
 
 	for _, l in ipairs(registroTitulos) do
 		TweenService:Create(l, ti, { TextColor3 = tema.on }):Play()
@@ -2705,6 +2833,7 @@ local function aplicarTema(nomeTema, instantaneo)
 		TweenService:Create(reg.label, ti, { TextColor3 = tema.texto }):Play()
 		local ligado = reg.estado()
 		TweenService:Create(reg.trilho, ti, { BackgroundColor3 = ligado and tema.on or tema.off }):Play()
+		if reg.glow then reg.glow.Color = tema.on end
 	end
 
 	for _, reg in ipairs(registroSliders) do
@@ -2721,7 +2850,6 @@ local function aplicarTema(nomeTema, instantaneo)
 	TweenService:Create(consoleTopo, ti, { BackgroundColor3 = tema.topo }):Play()
 	TweenService:Create(consoleTopoFill, ti, { BackgroundColor3 = tema.topo }):Play()
 	TweenService:Create(consoleLinha, ti, { BackgroundColor3 = tema.on }):Play()
-	TweenService:Create(consoleBorda, ti, { Color = tema.on }):Play()
 	TweenService:Create(consoleTitulo, ti, { TextColor3 = tema.texto }):Play()
 	TweenService:Create(consoleSub, ti, { TextColor3 = tema.texto }):Play()
 	TweenService:Create(consoleVazio, ti, { TextColor3 = tema.texto }):Play()
@@ -2745,6 +2873,8 @@ local function aplicarTema(nomeTema, instantaneo)
 
 	for nome, btn in pairs(botoesAbas) do
 		local selecionado = (nome == abaAtual)
+		local skAba = btn:FindFirstChildOfClass("UIStroke")
+		if skAba then skAba.Color = tema.on:Lerp(Color3.new(1, 1, 1), 0.4) end
 		TweenService:Create(btn, ti, {
 			BackgroundColor3 = selecionado and tema.on or tema.item,
 			TextColor3 = selecionado and COR_TEXTO_ABA_ATIVA or tema.texto,
@@ -2756,20 +2886,8 @@ local function aplicarTema(nomeTema, instantaneo)
 		sw.stroke.Color = (chave == nomeTema) and Color3.new(1, 1, 1) or Color3.fromRGB(60, 60, 70)
 	end
 
-	local gradienteExistente = borda:FindFirstChildOfClass("UIGradient")
-	if tema.vfx then
-		if not gradienteExistente then
-			gradienteExistente = Instance.new("UIGradient")
-			gradienteExistente.Parent = borda
-		end
-		gradienteExistente.Color = ColorSequence.new(tema.vfxCores[1], tema.vfxCores[2])
-		gradienteExistente.Rotation = 0
-		local giro = TweenService:Create(gradienteExistente, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false), { Rotation = 360 })
-		gradienteExistente:SetAttribute("VFXAtivo", true)
-		giro:Play()
-	elseif gradienteExistente then
-		gradienteExistente:Destroy()
-	end
+	-- bordas animadas, título colorido, partículas (veja o bloco VFX)
+	if VFX.tema then VFX.tema(tema) end
 end
 
 for chave, tema in pairs(Temas) do
@@ -2787,7 +2905,7 @@ for chave, tema in pairs(Temas) do
 
 	if tema.vfx then
 		local gradPreview = Instance.new("UIGradient")
-		gradPreview.Color = ColorSequence.new(tema.vfxCores[1], tema.vfxCores[2])
+		gradPreview.Color = VFX.seq(tema.vfxCores)
 		gradPreview.Rotation = 45
 		gradPreview.Parent = sw
 	end
@@ -3032,6 +3150,7 @@ local function sairDoMenu()
 	pcall(function() pararFastAttack() end)
 	pcall(function() pararAutoFarm() end)
 	pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+	pcall(function() if VFX.restaurarMouse then VFX.restaurarMouse() end end)
 	pcall(function()
 		local env = getgenv and getgenv()
 		if env then env.SABlacklist = nil end
@@ -3053,9 +3172,9 @@ local function sairDoMenu()
 		end
 	end)
 	pcall(function()
-		if boxSoruAtivo then
-			boxSoruAtivo = false
-			gerenciarTamanhosGlobais(false)
+		if BoxSoru.ativo then
+			BoxSoru.ativo = false
+			BoxSoru.gerenciar(false)
 		end
 	end)
 	pcall(function()
@@ -3095,9 +3214,9 @@ consoleInput.FocusLost:Connect(function(enterPressed)
 	executarComando(texto)
 end)
 
-criarTitulo(paginaConfigs, "Menu", 9)
+criarTitulo(paginaConfigs, "Menu", 90)
 
-local botaoSair = criarBotao(paginaConfigs, "Remover menu (Sair)", UDim2.new(1, 0, 0, 46), nil, 10, true)
+local botaoSair = criarBotao(paginaConfigs, "Remover menu (Sair)", UDim2.new(1, 0, 0, 46), nil, 91, true)
 botaoSair.MouseButton1Click:Connect(function()
 	sairDoMenu()
 end)
@@ -3515,13 +3634,23 @@ end)()
 ;(function()
 	local pagina = paginas["Mobilador"]
 
-	-- mude para true se o seu jogo for estritamente em primeira pessoa
-	local APENAS_PRIMEIRA_PESSOA = false
+	local MODOS = { "Meio + altura", "Onde está", "Escolhida" }
+	local modo = 1                    -- 1 = meio da tela na altura que você deixou | 2 = onde o mouse está | 3 = posição escolhida
+	local antiLimiteAtivo = false     -- posiciona o mouse ao girar a câmera
+	local semLimiteAtivo = false      -- só tira o limite de tela (trava o cursor enquanto gira)
+	local primeiraPessoa = false      -- trava o cursor no centro o tempo todo
+	local voltarMouse = true          -- devolve o mouse pra onde estava ao soltar
+	local posX, posY = 50, 35         -- posição escolhida (em % da tela)
 
-	local antiLimiteAtivo = false
-	local travado = false        -- está com o cursor travado agora?
-	local posSalva = nil         -- onde o mouse estava antes de travar
-	local esperaFrames = 0       -- frames de espera até o mouse chegar na posição
+	local travado = false             -- está com o cursor travado agora?
+	local posSalva = nil              -- onde o mouse estava antes de travar
+	local esperaFrames = 0            -- frames de espera até o mouse chegar na posição
+	local sensOriginal = nil          -- sensibilidade original do mouse (pra restaurar)
+
+	local seletorGui = nil            -- tela do seletor de posição/marcador
+	local marcador = nil
+	local mostrarMarcador = false
+	local definirX, definirY
 
 	local function temMoverMouse()
 		return type(mousemoveabs) == "function"
@@ -3532,76 +3661,256 @@ end)()
 			travado = false
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 			-- devolve o mouse pra onde ele estava antes de travar
-			if posSalva and temMoverMouse() then
+			if voltarMouse and posSalva and temMoverMouse() then
 				pcall(mousemoveabs, posSalva.X, posSalva.Y)
 			end
 			posSalva = nil
 		end
 	end
 
+	-- pra onde o mouse deve ir (em pixels da tela); nil = não mover
+	local function alvoDoMouse()
+		local tela = workspace.CurrentCamera.ViewportSize
+		if modo == 1 and posSalva then
+			return tela.X / 2, math.clamp(posSalva.Y, 5, tela.Y - 5)
+		elseif modo == 3 then
+			return tela.X * posX / 100, tela.Y * posY / 100
+		end
+		return nil
+	end
+
 	conectar(RunService.RenderStepped, function()
-		if not antiLimiteAtivo then return end
+		if not (antiLimiteAtivo or semLimiteAtivo or primeiraPessoa) then return end
 
 		-- só age se o dispositivo está reconhecendo o mouse
 		if not UserInputService.MouseEnabled then return end
 
-		local pressionado = APENAS_PRIMEIRA_PESSOA
+		local pressionado = primeiraPessoa
 			or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 
-		if pressionado then
-			if not travado then
-				-- começou a girar a câmera: guarda onde o mouse estava
-				travado = true
-				posSalva = UserInputService:GetMouseLocation()
-
-				if APENAS_PRIMEIRA_PESSOA then
-					esperaFrames = 0
-					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-				elseif temMoverMouse() then
-					-- vai pro MEIO da tela na horizontal, mas mantém a ALTURA onde você deixou o mouse
-					local tela = workspace.CurrentCamera.ViewportSize
-					local y = math.clamp(posSalva.Y, 5, tela.Y - 5)
-					pcall(mousemoveabs, tela.X / 2, y)
-					esperaFrames = 2 -- espera o mouse chegar antes de travar
-					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-				else
-					-- sem mousemoveabs: trava exatamente onde o mouse está
-					esperaFrames = 0
-					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
-				end
-			elseif esperaFrames > 0 then
-				esperaFrames = esperaFrames - 1
-				if esperaFrames == 0 then
-					-- trava exatamente onde o mouse parou (meio da tela, na altura que você deixou)
-					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
-				end
-			end
-		else
+		if not pressionado then
 			-- soltou o botão direito: libera o cursor e volta pro lugar de antes
 			soltar()
+			return
+		end
+
+		if not travado then
+			-- começou a girar a câmera
+			travado = true
+			posSalva = UserInputService:GetMouseLocation()
+			esperaFrames = 0
+
+			if primeiraPessoa then
+				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+			elseif antiLimiteAtivo and temMoverMouse() then
+				local x, y = alvoDoMouse()
+				if x then
+					-- leva o mouse até a posição escolhida e só depois trava
+					pcall(mousemoveabs, x, y)
+					esperaFrames = 2
+					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+				else
+					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+				end
+			else
+				-- sem mousemoveabs (ou só "sem limite"): trava exatamente onde o mouse está
+				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+			end
+		elseif esperaFrames > 0 then
+			esperaFrames = esperaFrames - 1
+			if esperaFrames == 0 then
+				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+			end
+		else
+			-- mantém travado: o jogo às vezes tenta soltar o cursor no meio do giro,
+			-- e é isso que faz o mouse bater na borda da tela e a câmera parar de virar
+			local desejado = primeiraPessoa and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.LockCurrentPosition
+			if UserInputService.MouseBehavior ~= desejado then
+				UserInputService.MouseBehavior = desejado
+			end
 		end
 	end)
 
+	-- ====================== marcador / seletor de posição ======================
+	local function garantirGui()
+		if seletorGui and seletorGui.Parent then return seletorGui end
+		seletorGui = Instance.new("ScreenGui")
+		seletorGui.Name = "Sadi_Seletor"
+		seletorGui.IgnoreGuiInset = true
+		seletorGui.ResetOnSpawn = false
+		seletorGui.DisplayOrder = 900
+		seletorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		seletorGui.Parent = playerGui
+		return seletorGui
+	end
+
+	local function atualizarMarcador()
+		local mostrar = mostrarMarcador and modo == 3
+		if not mostrar then
+			if marcador then marcador.Visible = false end
+			return
+		end
+		local g = garantirGui()
+		if not marcador or not marcador.Parent then
+			marcador = Instance.new("Frame")
+			marcador.Name = "Marcador"
+			marcador.AnchorPoint = Vector2.new(0.5, 0.5)
+			marcador.Size = UDim2.fromOffset(22, 22)
+			marcador.BackgroundTransparency = 1
+			marcador.ZIndex = 10
+			marcador.Parent = g
+			arredondar(marcador, 11)
+			local st = Instance.new("UIStroke")
+			st.Thickness = 2
+			st.Parent = marcador
+			local ponto = Instance.new("Frame")
+			ponto.AnchorPoint = Vector2.new(0.5, 0.5)
+			ponto.Position = UDim2.fromScale(0.5, 0.5)
+			ponto.Size = UDim2.fromOffset(6, 6)
+			ponto.BorderSizePixel = 0
+			ponto.Parent = marcador
+			arredondar(ponto, 3)
+		end
+		local cor = Temas[temaAtualNome].on
+		marcador:FindFirstChildOfClass("UIStroke").Color = cor
+		marcador:FindFirstChildOfClass("Frame").BackgroundColor3 = cor
+		marcador.Position = UDim2.fromScale(posX / 100, posY / 100)
+		marcador.Visible = true
+	end
+
+	local function escolherNaTela()
+		local g = garantirGui()
+
+		local ov = Instance.new("TextButton")
+		ov.Name = "EscolherPosicao"
+		ov.Size = UDim2.fromScale(1, 1)
+		ov.BackgroundColor3 = Color3.new(0, 0, 0)
+		ov.BackgroundTransparency = 0.55
+		ov.AutoButtonColor = false
+		ov.Text = "Clique (ou toque) onde o mouse deve ficar\n(Esc cancela)"
+		ov.TextColor3 = Color3.new(1, 1, 1)
+		ov.TextSize = 22
+		ov.Font = Enum.Font.GothamBold
+		ov.ZIndex = 100
+		ov.Parent = g
+
+		local cancelar
+		local function fechar()
+			if cancelar then cancelar:Disconnect() end
+			if ov.Parent then ov:Destroy() end
+		end
+
+		cancelar = UserInputService.InputBegan:Connect(function(input)
+			if input.KeyCode == Enum.KeyCode.Escape then fechar() end
+		end)
+
+		ov.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+				return
+			end
+			local tela = workspace.CurrentCamera.ViewportSize
+			local pos
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				pos = UserInputService:GetMouseLocation()
+			else
+				pos = input.Position + game:GetService("GuiService"):GetGuiInset()
+			end
+			posX = math.clamp(math.floor(pos.X / tela.X * 100 + 0.5), 0, 100)
+			posY = math.clamp(math.floor(pos.Y / tela.Y * 100 + 0.5), 0, 100)
+			if definirX then definirX(posX) end
+			if definirY then definirY(posY) end
+			atualizarMarcador()
+			logar("info", string.format("Posição do mouse escolhida: %d%% / %d%% da tela.", posX, posY))
+			fechar()
+		end)
+	end
+
+	-- ====================== INTERFACE ======================
 	criarCartao(pagina, "Mobilador", "Ferramentas de tela e câmera. Cada sistema novo entra aqui como um toggle.", 0)
 
-	criarTitulo(pagina, "Tela", 1)
+	criarTitulo(pagina, "Câmera / limite de tela", 1)
 
 	criarToggle(pagina, "AntiLimite-de-Tela BETA", 2, function(on)
 		antiLimiteAtivo = on
 		if on then
 			if not temMoverMouse() then
-				logar("aviso", "AntiLimite-de-Tela: o executor não tem mousemoveabs, então o mouse trava onde você deixou (sem ir pro meio).")
+				logar("aviso", "AntiLimite-de-Tela: o executor não tem mousemoveabs, então o mouse trava onde você deixou (sem ir pra posição escolhida).")
 			end
 			logar("info", "AntiLimite-de-Tela BETA ativado.")
 		else
 			soltar()
-			-- devolve o controle do cursor ao jogo
-			pcall(function()
-				UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-			end)
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
 			logar("info", "AntiLimite-de-Tela BETA desativado.")
 		end
 	end, false)
+
+	criarToggle(pagina, "Sem limite de câmera (mouse)", 3, function(on)
+		semLimiteAtivo = on
+		if on then
+			logar("info", "Sem limite de câmera ativado: o cursor fica travado enquanto você gira a câmera.")
+		else
+			soltar()
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+			logar("info", "Sem limite de câmera desativado.")
+		end
+	end, false)
+
+	criarToggle(pagina, "Primeira pessoa (travar sempre)", 4, function(on)
+		primeiraPessoa = on
+		if not on then
+			soltar()
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+		end
+		logar("info", on and "Primeira pessoa ativada: cursor travado no centro." or "Primeira pessoa desativada.")
+	end, false)
+
+	criarToggle(pagina, "Voltar o mouse onde estava", 5, function(on)
+		voltarMouse = on
+	end, true)
+
+	criarTitulo(pagina, "Posição do mouse ao girar", 6)
+
+	VFX.seletor(pagina, 7, MODOS, modo, function(i)
+		modo = i
+		atualizarMarcador()
+	end)
+
+	local _, dx = criarSlider(pagina, "Posição horizontal (X)", 8, 0, 100, posX, function(v)
+		posX = v
+		atualizarMarcador()
+	end, "%")
+	definirX = dx
+
+	local _, dy = criarSlider(pagina, "Posição vertical (Y)", 9, 0, 100, posY, function(v)
+		posY = v
+		atualizarMarcador()
+	end, "%")
+	definirY = dy
+
+	local botaoEscolher = criarBotao(pagina, "🎯  Escolher a posição clicando na tela", UDim2.new(1, 0, 0, 44), nil, 10, true)
+	botaoEscolher.MouseButton1Click:Connect(escolherNaTela)
+
+	criarToggle(pagina, "Mostrar marcador da posição", 11, function(on)
+		mostrarMarcador = on
+		atualizarMarcador()
+	end, false)
+
+	criarTitulo(pagina, "Sensibilidade", 12)
+
+	criarSlider(pagina, "Sensibilidade da câmera", 13, 10, 300, 100, function(v)
+		if not sensOriginal then sensOriginal = UserInputService.MouseDeltaSensitivity end
+		pcall(function() UserInputService.MouseDeltaSensitivity = sensOriginal * v / 100 end)
+	end, "%")
+
+	-- usado pelo Delete/Sair: devolve mouse, sensibilidade e remove o marcador
+	function VFX.restaurarMouse()
+		soltar()
+		pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+		if sensOriginal then
+			pcall(function() UserInputService.MouseDeltaSensitivity = sensOriginal end)
+		end
+		if seletorGui then pcall(function() seletorGui:Destroy() end) end
+	end
 end)()
 
 ----------------------------------------------------------------
@@ -4058,6 +4367,500 @@ end)()
 end)()
 
 ----------------------------------------------------------------
+-- VFX / EFEITOS VISUAIS (tudo ajustável em Configs > Efeitos)
+----------------------------------------------------------------
+;(function()
+	local BRANCO = Color3.new(1, 1, 1)
+
+	-- ===== opções =====
+	local vfxAtivo = true
+	local bordaAnimada = true
+	local pulsoBorda = true
+	local tituloColorido = true
+	local brilhoAbrir = true
+	local fundoAnimado = true
+	local toastAtivo = true
+	local velocidade = 100                    -- % (afeta as animações das bordas)
+	local particulasN = ehMobile and 0 or 14
+	local estiloParticula = 1                 -- 1 pontos | 2 estrelas | 3 bolhas
+
+	local giros = {}        -- [UIGradient] = tween de rotação
+	local loops = {}        -- tweens infinitos (pulso, brilho da linha, engrenagem, fundo)
+	local particulas = {}   -- { obj, tipo }
+
+	local function periodoReal(p) return p * 100 / velocidade end
+
+	-- cores do efeito: temas VFX usam as próprias cores; os outros ganham um brilho suave
+	local function coresDoTema(tema)
+		if tema.vfx and tema.vfxCores then return tema.vfxCores, 3 end
+		return { tema.on, tema.on:Lerp(BRANCO, 0.55), tema.on }, 6
+	end
+
+	local function animarGradiente(alvo, cores, periodo)
+		local g = alvo:FindFirstChild("VFXGrad")
+		if not g then
+			g = Instance.new("UIGradient")
+			g.Name = "VFXGrad"
+			g.Parent = alvo
+		end
+		g.Color = VFX.seq(cores)
+		if giros[g] then giros[g]:Cancel() end
+		g.Rotation = 0
+		local t = TweenService:Create(g, TweenInfo.new(periodo, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false), { Rotation = 360 })
+		giros[g] = t
+		t:Play()
+	end
+
+	local function removerGradiente(alvo)
+		local g = alvo:FindFirstChild("VFXGrad")
+		if g then
+			if giros[g] then
+				giros[g]:Cancel()
+				giros[g] = nil
+			end
+			g:Destroy()
+		end
+	end
+
+	-- ====================== PARTÍCULAS ======================
+	local camada = Instance.new("Frame")
+	camada.Name = "Particulas"
+	camada.Size = UDim2.fromScale(1, 1)
+	camada.BackgroundTransparency = 1
+	camada.BorderSizePixel = 0
+	camada.ClipsDescendants = true
+	camada.ZIndex = 0
+	camada.Visible = not ehMobile
+	camada.Parent = janela
+
+	local function pintarParticulas(tema)
+		local cor = tema.on:Lerp(BRANCO, 0.3)
+		for _, d in ipairs(particulas) do
+			if d.tipo == 1 then
+				d.obj.BackgroundColor3 = cor
+			elseif d.tipo == 2 then
+				d.obj.TextColor3 = cor
+			else
+				d.obj:FindFirstChildOfClass("UIStroke").Color = cor
+			end
+		end
+	end
+
+	local function construirParticulas()
+		for _, d in ipairs(particulas) do d.obj:Destroy() end
+		table.clear(particulas)
+
+		for _ = 1, particulasN do
+			local x = math.random()
+			local obj
+			if estiloParticula == 2 then
+				obj = Instance.new("TextLabel")
+				obj.Size = UDim2.fromOffset(16, 16)
+				obj.BackgroundTransparency = 1
+				obj.Text = "✦"
+				obj.TextSize = math.random(8, 16)
+				obj.Font = Enum.Font.GothamBold
+				obj.TextTransparency = 0.45 + math.random() * 0.35
+			elseif estiloParticula == 3 then
+				local tam = math.random(6, 16)
+				obj = Instance.new("Frame")
+				obj.Size = UDim2.fromOffset(tam, tam)
+				obj.BackgroundTransparency = 1
+				obj.BorderSizePixel = 0
+				arredondar(obj, 20)
+				local st = Instance.new("UIStroke")
+				st.Thickness = 1.5
+				st.Transparency = 0.45 + math.random() * 0.3
+				st.Parent = obj
+			else
+				local tam = math.random(2, 5)
+				obj = Instance.new("Frame")
+				obj.Size = UDim2.fromOffset(tam, tam)
+				obj.BackgroundTransparency = 0.55 + math.random() * 0.3
+				obj.BorderSizePixel = 0
+				arredondar(obj, 3)
+			end
+			obj.Position = UDim2.fromScale(x, 1.05 + math.random() * 0.3)
+			obj.ZIndex = 0
+			obj.Parent = camada
+			TweenService:Create(obj, TweenInfo.new(5 + math.random() * 6, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), {
+				Position = UDim2.fromScale(x, -0.1),
+			}):Play()
+			table.insert(particulas, { obj = obj, tipo = estiloParticula })
+		end
+
+		pintarParticulas(Temas[temaAtualNome])
+	end
+
+	-- ====================== LOOPS CONTÍNUOS ======================
+	local function pararLoops()
+		for _, t in ipairs(loops) do t:Cancel() end
+		table.clear(loops)
+		borda.Transparency = 0.15
+		consoleBorda.Transparency = 0.15
+		bordaBotao.Thickness = 2
+		linhaGrad.Offset = Vector2.new(0, 0)
+		fallbackText.Rotation = 0
+		gradFundo.Rotation = 90
+	end
+
+	local function iniciarLoops()
+		if #loops > 0 then return end
+
+		if pulsoBorda then
+			local pulso = TweenInfo.new(periodoReal(1.8), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+			table.insert(loops, TweenService:Create(borda, pulso, { Transparency = 0.5 }))
+			table.insert(loops, TweenService:Create(consoleBorda, pulso, { Transparency = 0.5 }))
+			table.insert(loops, TweenService:Create(bordaBotao, pulso, { Thickness = 3.4 }))
+		end
+
+		if fundoAnimado then
+			gradFundo.Rotation = 70
+			table.insert(loops, TweenService:Create(gradFundo, TweenInfo.new(periodoReal(7), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 110 }))
+		end
+
+		-- brilho passando na linha do topo
+		linhaGrad.Offset = Vector2.new(-0.45, 0)
+		table.insert(loops, TweenService:Create(linhaGrad, TweenInfo.new(periodoReal(2.4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Offset = Vector2.new(0.45, 0) }))
+
+		-- engrenagem girando devagar
+		table.insert(loops, TweenService:Create(fallbackText, TweenInfo.new(periodoReal(14), Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), { Rotation = 360 }))
+
+		for _, t in ipairs(loops) do t:Play() end
+	end
+
+	local function reiniciarLoops()
+		pararLoops()
+		if vfxAtivo then iniciarLoops() end
+	end
+
+	-- chamado toda vez que o tema muda (e quando uma opção de efeito muda)
+	function VFX.tema(tema)
+		local cores, periodo = coresDoTema(tema)
+
+		for _, st in ipairs({ borda, consoleBorda, bordaBotao }) do
+			if vfxAtivo and bordaAnimada then
+				st.Color = BRANCO
+				animarGradiente(st, cores, periodoReal(periodo))
+			else
+				removerGradiente(st)
+				st.Color = tema.on
+			end
+		end
+
+		-- título "Sadi" com gradiente colorido
+		if vfxAtivo and tituloColorido then
+			titulo.TextColor3 = BRANCO
+			animarGradiente(titulo, cores, periodoReal(4))
+		else
+			removerGradiente(titulo)
+			titulo.TextColor3 = tema.texto
+		end
+
+		pintarParticulas(tema)
+		if vfxAtivo then iniciarLoops() end
+	end
+
+	local function reaplicar()
+		VFX.tema(Temas[temaAtualNome])
+	end
+
+	-- ====================== BRILHO AO ABRIR / TROCA DE ABA ======================
+	local brilho = Instance.new("Frame")
+	brilho.Name = "Brilho"
+	brilho.AnchorPoint = Vector2.new(0.5, 0.5)
+	brilho.Size = UDim2.new(0.22, 0, 1.8, 0)
+	brilho.Position = UDim2.fromScale(-0.3, 0.5)
+	brilho.Rotation = 20
+	brilho.BackgroundColor3 = BRANCO
+	brilho.BorderSizePixel = 0
+	brilho.ZIndex = 50
+	brilho.Visible = false
+	brilho.Parent = janela
+
+	local brilhoGrad = Instance.new("UIGradient")
+	brilhoGrad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.82),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	brilhoGrad.Parent = brilho
+
+	function VFX.abrir()
+		if not (vfxAtivo and brilhoAbrir) then return end
+		brilho.Position = UDim2.fromScale(-0.3, 0.5)
+		brilho.Visible = true
+		local t = TweenService:Create(brilho, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromScale(1.3, 0.5) })
+		t.Completed:Connect(function() brilho.Visible = false end)
+		t:Play()
+	end
+
+	function VFX.aba(nome)
+		if not vfxAtivo then return end
+		local pag = paginas[nome]
+		if not pag then return end
+		pag.Position = UDim2.fromOffset(0, 14)
+		TweenService:Create(pag, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
+	end
+
+	-- ====================== NOTIFICAÇÕES (TOAST) ======================
+	local toastBox = Instance.new("Frame")
+	toastBox.Name = "Toasts"
+	toastBox.AnchorPoint = Vector2.new(0.5, 0)
+	toastBox.Position = UDim2.new(0.5, 0, 0, 10)
+	toastBox.Size = UDim2.fromOffset(0, 0)
+	toastBox.AutomaticSize = Enum.AutomaticSize.XY
+	toastBox.BackgroundTransparency = 1
+	toastBox.ZIndex = 300
+	toastBox.Parent = gui
+
+	local layToast = Instance.new("UIListLayout")
+	layToast.Padding = UDim.new(0, 6)
+	layToast.SortOrder = Enum.SortOrder.LayoutOrder
+	layToast.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layToast.Parent = toastBox
+
+	local contadorToast = 0
+
+	-- mostra um aviso bonito quando algo é ligado/desligado
+	function VFX.toast(texto)
+		if not toastAtivo then return end
+		if not (string.find(texto, "ativad") or string.find(texto, "ligada")) then return end
+
+		-- no máximo 4 ao mesmo tempo
+		local existentes = {}
+		for _, f in ipairs(toastBox:GetChildren()) do
+			if f:IsA("Frame") then table.insert(existentes, f) end
+		end
+		while #existentes >= 4 do
+			table.remove(existentes, 1):Destroy()
+		end
+
+		contadorToast = contadorToast + 1
+		local tema = Temas[temaAtualNome]
+
+		local t = Instance.new("Frame")
+		t.AutomaticSize = Enum.AutomaticSize.XY
+		t.Size = UDim2.fromOffset(0, 0)
+		t.BackgroundColor3 = tema.topo
+		t.BackgroundTransparency = 1
+		t.BorderSizePixel = 0
+		t.LayoutOrder = contadorToast
+		t.ZIndex = 300
+		t.Parent = toastBox
+		arredondar(t, 10)
+
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0, 8)
+		pad.PaddingBottom = UDim.new(0, 8)
+		pad.PaddingLeft = UDim.new(0, 14)
+		pad.PaddingRight = UDim.new(0, 14)
+		pad.Parent = t
+
+		local st = Instance.new("UIStroke")
+		st.Color = tema.on
+		st.Thickness = 1.5
+		st.Transparency = 1
+		st.Parent = t
+
+		local seguro = string.gsub(string.gsub(texto, "&", "&amp;"), "<", "&lt;")
+		local lbl = Instance.new("TextLabel")
+		lbl.AutomaticSize = Enum.AutomaticSize.XY
+		lbl.Size = UDim2.fromOffset(0, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.RichText = true
+		lbl.Text = '<font color="#' .. tema.on:ToHex() .. '">●</font>  ' .. seguro
+		lbl.TextColor3 = tema.texto
+		lbl.TextTransparency = 1
+		lbl.TextSize = 13
+		lbl.Font = Enum.Font.GothamMedium
+		lbl.ZIndex = 301
+		lbl.Parent = t
+
+		local ti = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(t, ti, { BackgroundTransparency = 0.08 }):Play()
+		TweenService:Create(st, ti, { Transparency = 0.2 }):Play()
+		TweenService:Create(lbl, ti, { TextTransparency = 0 }):Play()
+
+		task.delay(2.6, function()
+			if not t.Parent then return end
+			local to = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			TweenService:Create(t, to, { BackgroundTransparency = 1 }):Play()
+			TweenService:Create(st, to, { Transparency = 1 }):Play()
+			local fim = TweenService:Create(lbl, to, { TextTransparency = 1 })
+			fim.Completed:Connect(function()
+				if t.Parent then t:Destroy() end
+			end)
+			fim:Play()
+		end)
+	end
+
+	-- ====================== OPÇÕES NA ABA CONFIGS ======================
+	criarTitulo(paginaConfigs, "Efeitos", 11)
+
+	criarToggle(paginaConfigs, "Efeitos visuais (VFX)", 12, function(on)
+		vfxAtivo = on
+		reiniciarLoops()
+		reaplicar()
+	end, true)
+
+	criarToggle(paginaConfigs, "Borda animada", 13, function(on)
+		bordaAnimada = on
+		reaplicar()
+	end, true)
+
+	criarToggle(paginaConfigs, "Pulso da borda", 14, function(on)
+		pulsoBorda = on
+		reiniciarLoops()
+	end, true)
+
+	criarToggle(paginaConfigs, "Título colorido", 15, function(on)
+		tituloColorido = on
+		reaplicar()
+	end, true)
+
+	criarToggle(paginaConfigs, "Brilho ao abrir o menu", 16, function(on)
+		brilhoAbrir = on
+	end, true)
+
+	criarToggle(paginaConfigs, "Fundo animado", 17, function(on)
+		fundoAnimado = on
+		reiniciarLoops()
+	end, true)
+
+	criarToggle(paginaConfigs, "Notificações (toast)", 18, function(on)
+		toastAtivo = on
+	end, true)
+
+	local tokenVel = 0
+	criarSlider(paginaConfigs, "Velocidade dos efeitos", 19, 50, 200, velocidade, function(v)
+		velocidade = v
+		tokenVel = tokenVel + 1
+		local meu = tokenVel
+		task.delay(0.25, function()
+			if meu == tokenVel then
+				reiniciarLoops()
+				reaplicar()
+			end
+		end)
+	end, "%")
+
+	criarSlider(paginaConfigs, "Transparência do menu", 20, 0, 50, 0, function(v)
+		local t = v / 100
+		janela.BackgroundTransparency = t
+		topo.BackgroundTransparency = t
+		topoFill.BackgroundTransparency = t
+		consoleFrame.BackgroundTransparency = t
+		consoleTopo.BackgroundTransparency = t
+		consoleTopoFill.BackgroundTransparency = t
+	end, "%")
+
+	criarTitulo(paginaConfigs, "Partículas", 21)
+
+	criarToggle(paginaConfigs, "Partículas no menu", 22, function(on)
+		camada.Visible = on
+	end, not ehMobile)
+
+	local tokenPart = 0
+	criarSlider(paginaConfigs, "Quantidade de partículas", 23, 0, 40, particulasN, function(v)
+		particulasN = v
+		tokenPart = tokenPart + 1
+		local meu = tokenPart
+		task.delay(0.25, function()
+			if meu == tokenPart then construirParticulas() end
+		end)
+	end, "")
+
+	VFX.seletor(paginaConfigs, 24, { "Pontos", "Estrelas", "Bolhas" }, estiloParticula, function(i)
+		estiloParticula = i
+		construirParticulas()
+	end)
+
+	-- ====================== COR PERSONALIZADA ======================
+	local corR, corG, corB = 147, 112, 219
+	local ultimoAplicar = 0
+	local tokenCor = 0
+
+	local function montarPersonalizado()
+		local on = Color3.fromRGB(corR, corG, corB)
+		local preto = Color3.new(0, 0, 0)
+		local h, s = on:ToHSV()
+		local compl = Color3.fromHSV((h + 0.5) % 1, math.max(s, 0.5), 1)
+		Temas["Personalizado"] = {
+			on = on,
+			fundo = on:Lerp(preto, 0.9),
+			topo = on:Lerp(preto, 0.86),
+			item = on:Lerp(preto, 0.82),
+			off = Color3.fromRGB(70, 70, 88),
+			texto = on:Lerp(BRANCO, 0.92),
+			vfx = true,
+			vfxCores = { on, compl, on },
+		}
+		local sw = swatches["Personalizado"]
+		if sw and sw.botao then
+			sw.botao.BackgroundColor3 = on
+			local g = sw.botao:FindFirstChildOfClass("UIGradient")
+			if g then g.Color = VFX.seq(Temas["Personalizado"].vfxCores) end
+		end
+	end
+
+	local function aplicarCor()
+		montarPersonalizado()
+		aplicarTema("Personalizado")
+	end
+
+	local function mudouCor()
+		-- aplica no máximo ~7x por segundo enquanto arrasta, e uma vez no final
+		local agora = os.clock()
+		tokenCor = tokenCor + 1
+		local meu = tokenCor
+		if agora - ultimoAplicar > 0.15 then
+			ultimoAplicar = agora
+			aplicarCor()
+		else
+			task.delay(0.2, function()
+				if meu == tokenCor then aplicarCor() end
+			end)
+		end
+	end
+
+	criarTitulo(paginaConfigs, "Cor personalizada", 30)
+	criarSlider(paginaConfigs, "Vermelho", 31, 0, 255, corR, function(v) corR = v mudouCor() end, "")
+	criarSlider(paginaConfigs, "Verde", 32, 0, 255, corG, function(v) corG = v mudouCor() end, "")
+	criarSlider(paginaConfigs, "Azul", 33, 0, 255, corB, function(v) corB = v mudouCor() end, "")
+
+	local botaoAleatorio = criarBotao(paginaConfigs, "🎲  Tema aleatório", UDim2.new(1, 0, 0, 44), nil, 34, true)
+	botaoAleatorio.MouseButton1Click:Connect(function()
+		local nomes = {}
+		for nome in pairs(Temas) do
+			if nome ~= temaAtualNome then table.insert(nomes, nome) end
+		end
+		if #nomes > 0 then aplicarTema(nomes[math.random(#nomes)]) end
+	end)
+
+	local autoTema = false
+	criarToggle(paginaConfigs, "Trocar de tema automaticamente", 35, function(on)
+		autoTema = on
+		if not on then return end
+		task.spawn(function()
+			local nomes = {}
+			for nome in pairs(Temas) do table.insert(nomes, nome) end
+			table.sort(nomes)
+			local idx = 0
+			while autoTema and guiRaiz and guiRaiz.Parent do
+				task.wait(5)
+				if autoTema and guiRaiz and guiRaiz.Parent then
+					idx = idx % #nomes + 1
+					aplicarTema(nomes[idx])
+				end
+			end
+		end)
+	end, false)
+
+	construirParticulas()
+end)()
+
+----------------------------------------------------------------
 -- INICIALIZAÇÃO
 ----------------------------------------------------------------
 aplicarTema(TEMA_PADRAO, true)
@@ -4075,6 +4878,7 @@ local function definirAberto(valor)
 		janela.Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0)
 		janela.Visible = true
 		TweenService:Create(janela, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = tamanhoOriginal }):Play()
+		if VFX.abrir then VFX.abrir() end
 	else
 		local t = TweenService:Create(janela, TweenInfo.new(0.15), { Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0) })
 		t:Play()
