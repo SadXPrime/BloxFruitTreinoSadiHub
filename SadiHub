@@ -218,6 +218,8 @@ end
 
 -- efeitos visuais (VFX): tabela compartilhada; as funções VFX.tema/abrir/aba são definidas mais abaixo
 local VFX = {}
+VFX.animUI = true      -- animações de interface (hover/pressionar/etc.)
+VFX.extras = {}        -- UIStrokes extras que ganham o gradiente animado do tema
 
 -- monta um ColorSequence com N cores espalhadas igualmente
 VFX.seq = function(cores)
@@ -360,7 +362,7 @@ linhaGrad.Transparency = NumberSequence.new({
 linhaGrad.Parent = linhaTopo
 
 local titulo = Instance.new("TextLabel")
-titulo.Size = UDim2.new(1, -70, 0, 22)
+titulo.Size = UDim2.new(1, -120, 0, 22)
 titulo.Position = UDim2.fromOffset(18, 9)
 titulo.BackgroundTransparency = 1
 titulo.Text = "Sadi"
@@ -370,7 +372,7 @@ titulo.TextXAlignment = Enum.TextXAlignment.Left
 titulo.Parent = topo
 
 local subtitulo = Instance.new("TextLabel")
-subtitulo.Size = UDim2.new(1, -70, 0, 14)
+subtitulo.Size = UDim2.new(1, -120, 0, 14)
 subtitulo.Position = UDim2.fromOffset(18, 31)
 subtitulo.BackgroundTransparency = 1
 subtitulo.Text = "I Love TheCursedYama"
@@ -508,7 +510,7 @@ for i, nome in ipairs(NOMES_ABAS) do
 	btn.Size = UDim2.new(0, 0, 1, 0)
 	btn.AutomaticSize = Enum.AutomaticSize.X
 	btn.LayoutOrder = i
-	btn.Text = nome
+	btn.Text = (({ ["Início"] = "🏠 ", ["Auto farm ETC"] = "⚔ ", ["Treino"] = "💪 ", ["Full"] = "⚡ ", ["Mobilador"] = "🖱 ", ["Configs"] = "⚙ ", ["SA BLACK LIST"] = "🛡 " })[nome] or "") .. nome
 	btn.Font = Enum.Font.GothamBold
 	btn.TextSize = 11
 	btn.AutoButtonColor = false
@@ -540,7 +542,10 @@ for i, nome in ipairs(NOMES_ABAS) do
 		end
 	end)
 
-	btn.MouseButton1Click:Connect(function() selecionarAba(nome) end)
+	btn.MouseButton1Click:Connect(function()
+		if VFX.ripple then VFX.ripple(btn) end
+		selecionarAba(nome)
+	end)
 	botoesAbas[nome] = btn
 end
 
@@ -565,8 +570,18 @@ local function criarTitulo(pai, texto, ordem)
 	l.Parent = pai
 
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0, 4)
+	pad.PaddingLeft = UDim.new(0, 14)
 	pad.Parent = l
+
+	-- barrinha de cor antes do título
+	local barra = Instance.new("Frame")
+	barra.Name = "Barra"
+	barra.Size = UDim2.fromOffset(4, 12)
+	barra.Position = UDim2.new(0, -12, 0.5, -6)
+	barra.BackgroundColor3 = Temas[temaAtualNome].on
+	barra.BorderSizePixel = 0
+	barra.Parent = l
+	arredondar(barra, 2)
 
 	table.insert(registroTitulos, l)
 	return l
@@ -629,6 +644,7 @@ end
 
 local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 	local estado = estadoInicial or false
+	local molaInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 	local item = Instance.new("Frame")
 	item.Size = UDim2.new(1, 0, 0, 48)
@@ -678,22 +694,40 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 	glow.Transparency = estado and 0.45 or 1
 	glow.Parent = trilho
 
+	-- ✓ dentro da bolinha quando ligado
+	local marca = Instance.new("TextLabel")
+	marca.Size = UDim2.fromScale(1, 1)
+	marca.BackgroundTransparency = 1
+	marca.Text = "✓"
+	marca.TextSize = 12
+	marca.Font = Enum.Font.GothamBold
+	marca.TextColor3 = Temas[temaAtualNome].on
+	marca.TextTransparency = estado and 0 or 1
+	marca.Parent = bolinha
+
 	item.MouseEnter:Connect(function()
 		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.3 }):Play()
+		if VFX.animUI then
+			local t = Temas[temaAtualNome]
+			TweenService:Create(item, TweenInfo.new(0.15), { BackgroundColor3 = t.item:Lerp(t.on, 0.12) }):Play()
+		end
 	end)
 	item.MouseLeave:Connect(function()
 		TweenService:Create(stroke, TweenInfo.new(0.15), { Transparency = 0.75 }):Play()
+		TweenService:Create(item, TweenInfo.new(0.2), { BackgroundColor3 = Temas[temaAtualNome].item }):Play()
 	end)
 
-	local registro = { item = item, stroke = stroke, label = label, trilho = trilho, glow = glow, estado = function() return estado end }
+	local registro = { item = item, stroke = stroke, label = label, trilho = trilho, glow = glow, marca = marca, estado = function() return estado end }
 	table.insert(registroToggles, registro)
 
 	trilho.MouseButton1Click:Connect(function()
 		estado = not estado
+		if VFX.ripple then VFX.ripple(item) end
 		local tema = Temas[temaAtualNome]
 		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
 		TweenService:Create(glow, tweenInfo, { Transparency = estado and 0.45 or 1 }):Play()
-		TweenService:Create(bolinha, tweenInfo, {
+		TweenService:Create(marca, tweenInfo, { TextTransparency = estado and 0 or 1 }):Play()
+		TweenService:Create(bolinha, molaInfo, {
 			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 		}):Play()
 		task.spawn(callback, estado)
@@ -705,7 +739,8 @@ local function criarToggle(pai, nomeTexto, ordem, callback, estadoInicial)
 		local tema = Temas[temaAtualNome]
 		TweenService:Create(trilho, tweenInfo, { BackgroundColor3 = estado and tema.on or tema.off }):Play()
 		TweenService:Create(glow, tweenInfo, { Transparency = estado and 0.45 or 1 }):Play()
-		TweenService:Create(bolinha, tweenInfo, {
+		TweenService:Create(marca, tweenInfo, { TextTransparency = estado and 0 or 1 }):Play()
+		TweenService:Create(bolinha, molaInfo, {
 			Position = estado and UDim2.fromOffset(25, 3) or UDim2.fromOffset(3, 3),
 		}):Play()
 	end
@@ -769,7 +804,8 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 
 	local bolinha = Instance.new("Frame")
 	bolinha.Size = UDim2.fromOffset(18, 18)
-	bolinha.Position = UDim2.new(percentualInicial, -9, 0.5, -9)
+	bolinha.AnchorPoint = Vector2.new(0.5, 0.5)
+	bolinha.Position = UDim2.new(percentualInicial, 0, 0.5, 0)
 	bolinha.BackgroundColor3 = Color3.new(1, 1, 1)
 	bolinha.BorderSizePixel = 0
 	bolinha.ZIndex = 2
@@ -788,7 +824,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 		valorAtual = math.clamp(valorAtual, minVal, maxVal)
 		
 		preenchimento.Size = UDim2.fromScale(percent, 1)
-		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
+		bolinha.Position = UDim2.new(percent, 0, 0.5, 0)
 		valorLabel.Text = valorAtual .. sufixo
 		callback(valorAtual)
 	end
@@ -797,7 +833,7 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 	local function definirValor(v)
 		local percent = math.clamp((v - minVal) / (maxVal - minVal), 0, 1)
 		preenchimento.Size = UDim2.fromScale(percent, 1)
-		bolinha.Position = UDim2.new(percent, -9, 0.5, -9)
+		bolinha.Position = UDim2.new(percent, 0, 0.5, 0)
 		valorLabel.Text = math.floor(v) .. sufixo
 	end
 
@@ -810,6 +846,13 @@ local function criarSlider(pai, nomeTexto, ordem, minVal, maxVal, valorInicial, 
 	hit.AutoButtonColor = false
 	hit.ZIndex = 3
 	hit.Parent = item
+
+	hit.MouseEnter:Connect(function()
+		if VFX.animUI then TweenService:Create(bolinha, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(23, 23) }):Play() end
+	end)
+	hit.MouseLeave:Connect(function()
+		TweenService:Create(bolinha, TweenInfo.new(0.18), { Size = UDim2.fromOffset(18, 18) }):Play()
+	end)
 
 	hit.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -867,6 +910,22 @@ local function criarBotao(pai, texto, tamanho, posicao, ordem, destaque)
 	end)
 	btn.MouseLeave:Connect(function()
 		TweenService:Create(btn, TweenInfo.new(0.12), { BackgroundTransparency = 0 }):Play()
+	end)
+
+	-- efeito de pressionar (encolhe e volta com mola)
+	local escBtn = Instance.new("UIScale")
+	escBtn.Parent = btn
+	btn.MouseButton1Down:Connect(function()
+		if VFX.animUI then TweenService:Create(escBtn, TweenInfo.new(0.08), { Scale = 0.95 }):Play() end
+	end)
+	local function voltarEsc()
+		TweenService:Create(escBtn, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+	btn.MouseButton1Up:Connect(voltarEsc)
+	btn.MouseLeave:Connect(voltarEsc)
+
+	btn.MouseButton1Click:Connect(function()
+		if VFX.ripple then VFX.ripple(btn) end
 	end)
 
 	table.insert(registroBotoes, { btn = btn, stroke = stroke, destaque = destaque })
@@ -2818,6 +2877,8 @@ local function aplicarTema(nomeTema, instantaneo)
 
 	for _, l in ipairs(registroTitulos) do
 		TweenService:Create(l, ti, { TextColor3 = tema.on }):Play()
+		local barra = l:FindFirstChild("Barra")
+		if barra then TweenService:Create(barra, ti, { BackgroundColor3 = tema.on }):Play() end
 	end
 
 	for _, reg in ipairs(registroCartoes) do
@@ -2834,6 +2895,7 @@ local function aplicarTema(nomeTema, instantaneo)
 		local ligado = reg.estado()
 		TweenService:Create(reg.trilho, ti, { BackgroundColor3 = ligado and tema.on or tema.off }):Play()
 		if reg.glow then reg.glow.Color = tema.on end
+		if reg.marca then reg.marca.TextColor3 = tema.on end
 	end
 
 	for _, reg in ipairs(registroSliders) do
@@ -2883,8 +2945,13 @@ local function aplicarTema(nomeTema, instantaneo)
 
 	for chave, sw in pairs(swatches) do
 		sw.stroke.Thickness = (chave == nomeTema) and 3 or 1
+		sw.botao.Text = (chave == nomeTema) and "✓" or ""
 		sw.stroke.Color = (chave == nomeTema) and Color3.new(1, 1, 1) or Color3.fromRGB(60, 60, 70)
 	end
+
+	for _, pg in pairs(paginas) do pg.ScrollBarImageColor3 = tema.on end
+	consoleLista.ScrollBarImageColor3 = tema.on
+	barraAbas.ScrollBarImageColor3 = tema.on
 
 	-- bordas animadas, título colorido, partículas (veja o bloco VFX)
 	if VFX.tema then VFX.tema(tema) end
@@ -2927,6 +2994,19 @@ for chave, tema in pairs(Temas) do
 	legenda.Font = Enum.Font.GothamMedium
 	legenda.TextWrapped = true
 	legenda.Parent = sw
+
+	sw.TextColor3 = Color3.new(1, 1, 1)
+	sw.TextSize = 24
+	sw.Font = Enum.Font.GothamBold
+
+	local escSw = Instance.new("UIScale")
+	escSw.Parent = sw
+	sw.MouseEnter:Connect(function()
+		if VFX.animUI then TweenService:Create(escSw, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.08 }):Play() end
+	end)
+	sw.MouseLeave:Connect(function()
+		TweenService:Create(escSw, TweenInfo.new(0.15), { Scale = 1 }):Play()
+	end)
 
 	sw.MouseButton1Click:Connect(function() aplicarTema(chave) end)
 	swatches[chave] = { botao = sw, stroke = strokeSw }
@@ -3634,32 +3714,119 @@ end)()
 ;(function()
 	local pagina = paginas["Mobilador"]
 
+	-- ====================== OPÇÕES ======================
 	local MODOS = { "Meio + altura", "Onde está", "Escolhida" }
-	local modo = 1                    -- 1 = meio da tela na altura que você deixou | 2 = onde o mouse está | 3 = posição escolhida
-	local antiLimiteAtivo = false     -- posiciona o mouse ao girar a câmera
-	local semLimiteAtivo = false      -- só tira o limite de tela (trava o cursor enquanto gira)
-	local primeiraPessoa = false      -- trava o cursor no centro o tempo todo
+	local METODOS = { "Posição atual", "Centro" }
+	local modo = 1                    -- onde o mouse fica ao girar (só no AntiLimite): 1 meio+altura | 2 onde está | 3 escolhida
+	local metodo = 1                  -- como travar o cursor: 1 = LockCurrentPosition | 2 = LockCenter
+	local antiLimiteAtivo = false     -- leva o mouse pra posição escolhida ao girar a câmera
+	local semLimiteAtivo = false      -- trava o cursor enquanto gira (tira o limite de tela)
+	local bordasAtivo = false         -- continua girando quando o cursor encosta na borda da tela
+	local camLivreAtiva = false       -- câmera própria (giro livre, até 360° na vertical)
+	local primeiraPessoa = false      -- cursor travado no centro o tempo todo
 	local voltarMouse = true          -- devolve o mouse pra onde estava ao soltar
-	local posX, posY = 50, 35         -- posição escolhida (em % da tela)
+	local vertical360 = false         -- câmera livre sem limite vertical
+	local inverterY = false
+	local posX, posY = 50, 35         -- posição escolhida (% da tela)
+	local velBorda = 140              -- graus por segundo (giro nas bordas)
+	local margemBorda = 3             -- px da borda que contam como "encostou"
+	local sensUsuario = 100           -- % (slider de sensibilidade)
 
-	local travado = false             -- está com o cursor travado agora?
-	local posSalva = nil              -- onde o mouse estava antes de travar
-	local esperaFrames = 0            -- frames de espera até o mouse chegar na posição
-	local sensOriginal = nil          -- sensibilidade original do mouse (pra restaurar)
+	-- ====================== ESTADO ======================
+	local travado = false
+	local posSalva = nil
+	local esperaFrames = 0
+	local sensOriginal = nil
+	local bordaArmada = false
+	local somaDelta = Vector2.new(0, 0)
 
-	local seletorGui = nil            -- tela do seletor de posição/marcador
+	-- câmera livre
+	local livreAtiva = false
+	local tipoCamOriginal = nil
+	local yawL, pitchL, distL = 0, 0, 10
+	local focoOffset = Vector3.new(0, 0, 0)
+
+	-- seletor de posição
+	local seletorGui = nil
 	local marcador = nil
 	local mostrarMarcador = false
 	local definirX, definirY
 
-	local function temMoverMouse()
-		return type(mousemoveabs) == "function"
+	local function cam() return workspace.CurrentCamera end
+	local function temMoverMouse() return type(mousemoveabs) == "function" end
+
+	local function aplicarSens(mult)
+		if not sensOriginal then sensOriginal = UserInputService.MouseDeltaSensitivity end
+		pcall(function() UserInputService.MouseDeltaSensitivity = sensOriginal * mult end)
 	end
 
+	local function comportamentoDesejado()
+		if primeiraPessoa or metodo == 2 then return Enum.MouseBehavior.LockCenter end
+		return Enum.MouseBehavior.LockCurrentPosition
+	end
+
+	-- ====================== CÂMERA ======================
+	-- gira a câmera em volta do ponto de foco (usado no giro das bordas)
+	local function girarCamera(dyaw, dpitch)
+		local c = cam()
+		local cf = c.CFrame
+		local foco = c.Focus.Position
+		local dist = (cf.Position - foco).Magnitude
+		local rx, ry = cf:ToOrientation()
+		local pitch = math.clamp(rx - dpitch, -1.45, 1.45)
+		local rot = CFrame.fromOrientation(pitch, ry - dyaw, 0)
+		c.CFrame = CFrame.new(foco - rot.LookVector * dist) * rot
+	end
+
+	local function iniciarLivre()
+		local c = cam()
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local rx, ry = c.CFrame:ToOrientation()
+		pitchL, yawL = rx, ry
+		distL = (c.CFrame.Position - c.Focus.Position).Magnitude
+		focoOffset = hrp and (c.Focus.Position - hrp.Position) or Vector3.new(0, 0, 0)
+		tipoCamOriginal = c.CameraType
+		c.CameraType = Enum.CameraType.Scriptable
+		livreAtiva = true
+	end
+
+	local function finalizarLivre()
+		if not livreAtiva then return end
+		livreAtiva = false
+		local c = cam()
+		pcall(function() c.CameraType = tipoCamOriginal or Enum.CameraType.Custom end)
+		tipoCamOriginal = nil
+	end
+
+	local function atualizarLivre(d)
+		local k = 0.0035
+		yawL = yawL - d.X * k
+		pitchL = pitchL - d.Y * k * (inverterY and -1 or 1)
+		if vertical360 then
+			if pitchL > math.pi then pitchL = pitchL - 2 * math.pi end
+			if pitchL < -math.pi then pitchL = pitchL + 2 * math.pi end
+		else
+			pitchL = math.clamp(pitchL, -1.45, 1.45)
+		end
+
+		local c = cam()
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local foco = hrp and (hrp.Position + focoOffset) or c.Focus.Position
+		local rot = CFrame.fromOrientation(pitchL, yawL, 0)
+		c.CFrame = CFrame.new(foco - rot.LookVector * distL) * rot
+		c.Focus = CFrame.new(foco)
+	end
+
+	-- ====================== TRAVA DO CURSOR ======================
 	local function soltar()
+		finalizarLivre()
 		if travado then
 			travado = false
+			esperaFrames = 0
 			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+			aplicarSens(sensUsuario / 100)
 			-- devolve o mouse pra onde ele estava antes de travar
 			if voltarMouse and posSalva and temMoverMouse() then
 				pcall(mousemoveabs, posSalva.X, posSalva.Y)
@@ -3670,7 +3837,7 @@ end)()
 
 	-- pra onde o mouse deve ir (em pixels da tela); nil = não mover
 	local function alvoDoMouse()
-		local tela = workspace.CurrentCamera.ViewportSize
+		local tela = cam().ViewportSize
 		if modo == 1 and posSalva then
 			return tela.X / 2, math.clamp(posSalva.Y, 5, tela.Y - 5)
 		elseif modo == 3 then
@@ -3679,54 +3846,78 @@ end)()
 		return nil
 	end
 
-	conectar(RunService.RenderStepped, function()
-		if not (antiLimiteAtivo or semLimiteAtivo or primeiraPessoa) then return end
+	local function algumaTravaAtiva()
+		return antiLimiteAtivo or semLimiteAtivo or camLivreAtiva or primeiraPessoa
+	end
+
+	conectar(RunService.RenderStepped, function(dt)
+		if not (algumaTravaAtiva() or bordasAtivo) then return end
 
 		-- só age se o dispositivo está reconhecendo o mouse
 		if not UserInputService.MouseEnabled then return end
 
-		local pressionado = primeiraPessoa
+		local girando = primeiraPessoa
 			or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 
-		if not pressionado then
+		if not girando then
 			-- soltou o botão direito: libera o cursor e volta pro lugar de antes
 			soltar()
+			bordaArmada = false
 			return
 		end
 
+		-- ---------- giro nas bordas (quando o cursor não está sendo travado por nós) ----------
+		if bordasAtivo and not algumaTravaAtiva() then
+			local pos = UserInputService:GetMouseLocation()
+			local tela = cam().ViewportSize
+			local nx = (pos.X <= margemBorda) and -1 or ((pos.X >= tela.X - margemBorda) and 1 or 0)
+			local ny = (pos.Y <= margemBorda) and -1 or ((pos.Y >= tela.Y - margemBorda) and 1 or 0)
+			if nx == 0 and ny == 0 then
+				bordaArmada = true -- o cursor já esteve longe da borda neste giro
+			elseif bordaArmada then
+				local v = math.rad(velBorda) * dt
+				girarCamera(nx * v, -ny * v)
+			end
+			return
+		end
+
+		-- ---------- trava do cursor ----------
 		if not travado then
-			-- começou a girar a câmera
 			travado = true
 			posSalva = UserInputService:GetMouseLocation()
 			esperaFrames = 0
 
 			if primeiraPessoa then
 				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-			elseif antiLimiteAtivo and temMoverMouse() then
+			elseif antiLimiteAtivo and metodo == 1 and temMoverMouse() and alvoDoMouse() then
+				-- leva o mouse até a posição escolhida SEM girar a câmera (sensibilidade zerada),
+				-- e só depois trava. Fica em "Default" nesses frames pra o jogo não puxar o cursor de volta.
 				local x, y = alvoDoMouse()
-				if x then
-					-- leva o mouse até a posição escolhida e só depois trava
-					pcall(mousemoveabs, x, y)
-					esperaFrames = 2
-					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-				else
-					UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
-				end
+				aplicarSens(0)
+				pcall(mousemoveabs, x, y)
+				esperaFrames = 3
+				UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 			else
-				-- sem mousemoveabs (ou só "sem limite"): trava exatamente onde o mouse está
-				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+				UserInputService.MouseBehavior = comportamentoDesejado()
 			end
 		elseif esperaFrames > 0 then
 			esperaFrames = esperaFrames - 1
+			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 			if esperaFrames == 0 then
-				UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+				UserInputService.MouseBehavior = comportamentoDesejado()
+				aplicarSens(sensUsuario / 100)
 			end
 		else
 			-- mantém travado: o jogo às vezes tenta soltar o cursor no meio do giro,
 			-- e é isso que faz o mouse bater na borda da tela e a câmera parar de virar
-			local desejado = primeiraPessoa and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.LockCurrentPosition
+			local desejado = comportamentoDesejado()
 			if UserInputService.MouseBehavior ~= desejado then
 				UserInputService.MouseBehavior = desejado
+			end
+
+			if camLivreAtiva then
+				if not livreAtiva then iniciarLivre() end
+				atualizarLivre(UserInputService:GetMouseDelta())
 			end
 		end
 	end)
@@ -3808,7 +3999,7 @@ end)()
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
-			local tela = workspace.CurrentCamera.ViewportSize
+			local tela = cam().ViewportSize
 			local pos
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
 				pos = UserInputService:GetMouseLocation()
@@ -3826,11 +4017,63 @@ end)()
 	end
 
 	-- ====================== INTERFACE ======================
-	criarCartao(pagina, "Mobilador", "Ferramentas de tela e câmera. Cada sistema novo entra aqui como um toggle.", 0)
+	criarCartao(pagina, "Mobilador", "Ferramentas de câmera e limite de tela. Use junto com o painel de diagnóstico lá embaixo pra ver o que está acontecendo.", 0)
 
-	criarTitulo(pagina, "Câmera / limite de tela", 1)
+	criarTitulo(pagina, "Tirar o limite de tela", 1)
 
-	criarToggle(pagina, "AntiLimite-de-Tela BETA", 2, function(on)
+	criarToggle(pagina, "Sem limite de câmera (mouse)", 2, function(on)
+		semLimiteAtivo = on
+		if on then
+			logar("info", "Sem limite de câmera ativado: o cursor fica travado enquanto você gira a câmera.")
+		else
+			soltar()
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+			logar("info", "Sem limite de câmera desativado.")
+		end
+	end, false)
+
+	criarToggle(pagina, "Giro nas bordas (nunca trava)", 3, function(on)
+		bordasAtivo = on
+		bordaArmada = false
+		logar("info", on and "Giro nas bordas ativado: encostou na borda da tela, a câmera continua girando." or "Giro nas bordas desativado.")
+	end, false)
+
+	criarToggle(pagina, "Câmera livre 360° (BETA)", 4, function(on)
+		camLivreAtiva = on
+		if not on then
+			soltar()
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+		end
+		logar("info", on and "Câmera livre ativada: segure o botão direito pra girar sem limite." or "Câmera livre desativada.")
+	end, false)
+
+	criarToggle(pagina, "   ↳ Sem limite vertical (360° total)", 5, function(on)
+		vertical360 = on
+	end, false)
+
+	criarToggle(pagina, "   ↳ Inverter eixo Y", 6, function(on)
+		inverterY = on
+	end, false)
+
+	criarToggle(pagina, "Primeira pessoa (travar sempre)", 7, function(on)
+		primeiraPessoa = on
+		if not on then
+			soltar()
+			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
+		end
+		logar("info", on and "Primeira pessoa ativada: cursor travado no centro." or "Primeira pessoa desativada.")
+	end, false)
+
+	criarTitulo(pagina, "Como travar o cursor", 8)
+	VFX.seletor(pagina, 9, METODOS, metodo, function(i) metodo = i end)
+
+	criarTitulo(pagina, "Giro nas bordas", 10)
+	criarSlider(pagina, "Velocidade do giro", 11, 30, 400, velBorda, function(v) velBorda = v end, "°/s")
+	criarSlider(pagina, "Margem da borda", 12, 1, 30, margemBorda, function(v) margemBorda = v end, " px")
+
+	criarTitulo(pagina, "Posição do mouse ao girar", 13)
+
+	criarToggle(pagina, "AntiLimite-de-Tela BETA", 14, function(on)
 		antiLimiteAtivo = on
 		if on then
 			if not temMoverMouse() then
@@ -3844,65 +4087,76 @@ end)()
 		end
 	end, false)
 
-	criarToggle(pagina, "Sem limite de câmera (mouse)", 3, function(on)
-		semLimiteAtivo = on
-		if on then
-			logar("info", "Sem limite de câmera ativado: o cursor fica travado enquanto você gira a câmera.")
-		else
-			soltar()
-			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
-			logar("info", "Sem limite de câmera desativado.")
-		end
-	end, false)
-
-	criarToggle(pagina, "Primeira pessoa (travar sempre)", 4, function(on)
-		primeiraPessoa = on
-		if not on then
-			soltar()
-			pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
-		end
-		logar("info", on and "Primeira pessoa ativada: cursor travado no centro." or "Primeira pessoa desativada.")
-	end, false)
-
-	criarToggle(pagina, "Voltar o mouse onde estava", 5, function(on)
+	criarToggle(pagina, "Voltar o mouse onde estava", 15, function(on)
 		voltarMouse = on
 	end, true)
 
-	criarTitulo(pagina, "Posição do mouse ao girar", 6)
-
-	VFX.seletor(pagina, 7, MODOS, modo, function(i)
+	VFX.seletor(pagina, 16, MODOS, modo, function(i)
 		modo = i
 		atualizarMarcador()
 	end)
 
-	local _, dx = criarSlider(pagina, "Posição horizontal (X)", 8, 0, 100, posX, function(v)
+	local _, dx = criarSlider(pagina, "Posição horizontal (X)", 17, 0, 100, posX, function(v)
 		posX = v
 		atualizarMarcador()
 	end, "%")
 	definirX = dx
 
-	local _, dy = criarSlider(pagina, "Posição vertical (Y)", 9, 0, 100, posY, function(v)
+	local _, dy = criarSlider(pagina, "Posição vertical (Y)", 18, 0, 100, posY, function(v)
 		posY = v
 		atualizarMarcador()
 	end, "%")
 	definirY = dy
 
-	local botaoEscolher = criarBotao(pagina, "🎯  Escolher a posição clicando na tela", UDim2.new(1, 0, 0, 44), nil, 10, true)
+	local botaoEscolher = criarBotao(pagina, "🎯  Escolher a posição clicando na tela", UDim2.new(1, 0, 0, 44), nil, 19, true)
 	botaoEscolher.MouseButton1Click:Connect(escolherNaTela)
 
-	criarToggle(pagina, "Mostrar marcador da posição", 11, function(on)
+	criarToggle(pagina, "Mostrar marcador da posição", 20, function(on)
 		mostrarMarcador = on
 		atualizarMarcador()
 	end, false)
 
-	criarTitulo(pagina, "Sensibilidade", 12)
-
-	criarSlider(pagina, "Sensibilidade da câmera", 13, 10, 300, 100, function(v)
-		if not sensOriginal then sensOriginal = UserInputService.MouseDeltaSensitivity end
-		pcall(function() UserInputService.MouseDeltaSensitivity = sensOriginal * v / 100 end)
+	criarTitulo(pagina, "Sensibilidade", 21)
+	criarSlider(pagina, "Sensibilidade da câmera", 22, 10, 300, sensUsuario, function(v)
+		sensUsuario = v
+		if not (travado and esperaFrames > 0) then aplicarSens(v / 100) end
 	end, "%")
 
-	-- usado pelo Delete/Sair: devolve mouse, sensibilidade e remove o marcador
+	criarTitulo(pagina, "Diagnóstico ao vivo", 23)
+	criarCartao(pagina, "Mouse e câmera", "Aguardando...", 24)
+	local statusCorpo = registroCartoes[#registroCartoes].corpo
+
+	-- atualiza o diagnóstico 4x por segundo (só enquanto a aba está aberta)
+	local ultimoStatus = 0
+	conectar(RunService.RenderStepped, function()
+		if janela.Visible and pagina.Visible then
+			somaDelta = somaDelta + UserInputService:GetMouseDelta()
+		end
+		local agora = os.clock()
+		if agora - ultimoStatus < 0.25 then return end
+		local passou = agora - ultimoStatus
+		ultimoStatus = agora
+		if not (janela.Visible and pagina.Visible) then
+			somaDelta = Vector2.new(0, 0)
+			return
+		end
+		local pos = UserInputService:GetMouseLocation()
+		local tela = cam().ViewportSize
+		local naBorda = pos.X <= margemBorda or pos.Y <= margemBorda or pos.X >= tela.X - margemBorda or pos.Y >= tela.Y - margemBorda
+		statusCorpo.Text = string.format(
+			"Travado: %s  |  Behavior: %s\nMovimento: %d, %d px/s  |  Cursor: %d, %d\nNa borda: %s  |  Câmera livre: %s  |  mousemoveabs: %s",
+			travado and "sim" or "não",
+			UserInputService.MouseBehavior.Name,
+			math.floor(math.abs(somaDelta.X) / passou), math.floor(math.abs(somaDelta.Y) / passou),
+			math.floor(pos.X), math.floor(pos.Y),
+			naBorda and "SIM" or "não",
+			livreAtiva and "sim" or "não",
+			temMoverMouse() and "sim" or "NÃO"
+		)
+		somaDelta = Vector2.new(0, 0)
+	end)
+
+	-- usado pelo Delete/Sair: devolve mouse, sensibilidade, câmera e remove o marcador
 	function VFX.restaurarMouse()
 		soltar()
 		pcall(function() UserInputService.MouseBehavior = Enum.MouseBehavior.Default end)
@@ -4538,7 +4792,11 @@ end)()
 	function VFX.tema(tema)
 		local cores, periodo = coresDoTema(tema)
 
-		for _, st in ipairs({ borda, consoleBorda, bordaBotao }) do
+		local alvos = { borda, consoleBorda, bordaBotao }
+		for _, ex in ipairs(VFX.extras) do
+			if ex.Parent then table.insert(alvos, ex) end
+		end
+		for _, st in ipairs(alvos) do
 			if vfxAtivo and bordaAnimada then
 				st.Color = BRANCO
 				animarGradiente(st, cores, periodoReal(periodo))
@@ -4558,6 +4816,7 @@ end)()
 		end
 
 		pintarParticulas(tema)
+		if VFX.pintarAurora then VFX.pintarAurora(tema) end
 		if vfxAtivo then iniciarLoops() end
 	end
 
@@ -4595,13 +4854,72 @@ end)()
 		t:Play()
 	end
 
+	-- "cortina" que some devagar ao trocar de aba (efeito de fade) + página sobe
+	local cortina = Instance.new("Frame")
+	cortina.Name = "Cortina"
+	cortina.Size = UDim2.fromScale(1, 1)
+	cortina.BorderSizePixel = 0
+	cortina.ZIndex = 40
+	cortina.Visible = false
+	cortina.Parent = conteudo
+
+	local tokenCortina = 0
 	function VFX.aba(nome)
-		if not vfxAtivo then return end
+		if not vfxAtivo or not VFX.animUI then return end
 		local pag = paginas[nome]
 		if not pag then return end
+
 		pag.Position = UDim2.fromOffset(0, 14)
-		TweenService:Create(pag, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
+		TweenService:Create(pag, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
+
+		tokenCortina = tokenCortina + 1
+		local meu = tokenCortina
+		cortina.BackgroundColor3 = Temas[temaAtualNome].fundo
+		cortina.BackgroundTransparency = 0.2
+		cortina.Visible = true
+		local t = TweenService:Create(cortina, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 })
+		t.Completed:Connect(function()
+			if meu == tokenCortina then cortina.Visible = false end
+		end)
+		t:Play()
 	end
+
+	-- ====================== MINIMIZAR ======================
+	local minimizarBtn = Instance.new("TextButton")
+	minimizarBtn.Size = UDim2.fromOffset(30, 30)
+	minimizarBtn.Position = UDim2.new(1, -78, 0.5, -15)
+	minimizarBtn.BackgroundColor3 = Color3.fromRGB(225, 165, 45)
+	minimizarBtn.Text = "–"
+	minimizarBtn.TextColor3 = BRANCO
+	minimizarBtn.TextSize = 20
+	minimizarBtn.Font = Enum.Font.GothamBold
+	minimizarBtn.AutoButtonColor = false
+	minimizarBtn.BorderSizePixel = 0
+	minimizarBtn.Parent = topo
+	arredondar(minimizarBtn, 10)
+
+	minimizarBtn.MouseEnter:Connect(function()
+		TweenService:Create(minimizarBtn, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(245, 190, 70) }):Play()
+	end)
+	minimizarBtn.MouseLeave:Connect(function()
+		TweenService:Create(minimizarBtn, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(225, 165, 45) }):Play()
+	end)
+
+	local minimizado = false
+	minimizarBtn.MouseButton1Click:Connect(function()
+		minimizado = not minimizado
+		minimizarBtn.Text = minimizado and "+" or "–"
+		local alt = minimizado and (ALTURA_TOPO + 2) or ALTURA_JANELA
+		TweenService:Create(janela, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(LARGURA_JANELA, alt) }):Play()
+	end)
+
+	-- ao reabrir o menu ele volta ao tamanho normal
+	janela:GetPropertyChangedSignal("Visible"):Connect(function()
+		if janela.Visible then
+			minimizado = false
+			minimizarBtn.Text = "–"
+		end
+	end)
 
 	-- ====================== NOTIFICAÇÕES (TOAST) ======================
 	local toastBox = Instance.new("Frame")
@@ -4620,6 +4938,7 @@ end)()
 	layToast.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layToast.Parent = toastBox
 
+	VFX.toastBox = toastBox
 	local contadorToast = 0
 
 	-- mostra um aviso bonito quando algo é ligado/desligado
@@ -4861,6 +5180,503 @@ end)()
 end)()
 
 ----------------------------------------------------------------
+-- UI EXTRA: perfil, desempenho ao vivo, busca de funções e opções de interface
+----------------------------------------------------------------
+;(function()
+	local BRANCO = Color3.new(1, 1, 1)
+
+	-- ====================== PERFIL (aba Início) ======================
+	local perfil = Instance.new("Frame")
+	perfil.Name = "Perfil"
+	perfil.Size = UDim2.new(1, 0, 0, 80)
+	perfil.LayoutOrder = 0
+	perfil.BorderSizePixel = 0
+	perfil.Parent = paginaInicio
+	arredondar(perfil, 14)
+	VFX.prof(perfil)
+
+	local perfilStroke = Instance.new("UIStroke")
+	perfilStroke.Thickness = 1
+	perfilStroke.Transparency = 0.6
+	perfilStroke.Parent = perfil
+
+	local avatar = Instance.new("ImageLabel")
+	avatar.Size = UDim2.fromOffset(56, 56)
+	avatar.Position = UDim2.fromOffset(14, 12)
+	avatar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	avatar.BorderSizePixel = 0
+	avatar.ScaleType = Enum.ScaleType.Crop
+	avatar.Parent = perfil
+	arredondar(avatar, 28)
+
+	local avatarStroke = Instance.new("UIStroke")
+	avatarStroke.Thickness = 3
+	avatarStroke.Color = BRANCO
+	avatarStroke.Parent = avatar
+	table.insert(VFX.extras, avatarStroke) -- ganha o gradiente animado do tema
+
+	local perfilNome = Instance.new("TextLabel")
+	perfilNome.Size = UDim2.new(1, -92, 0, 22)
+	perfilNome.Position = UDim2.fromOffset(80, 14)
+	perfilNome.BackgroundTransparency = 1
+	perfilNome.Text = player.DisplayName
+	perfilNome.TextSize = 17
+	perfilNome.Font = Enum.Font.GothamBold
+	perfilNome.TextXAlignment = Enum.TextXAlignment.Left
+	perfilNome.TextTruncate = Enum.TextTruncate.AtEnd
+	perfilNome.Parent = perfil
+
+	local perfilInfo = Instance.new("TextLabel")
+	perfilInfo.Size = UDim2.new(1, -92, 0, 30)
+	perfilInfo.Position = UDim2.fromOffset(80, 38)
+	perfilInfo.BackgroundTransparency = 1
+	perfilInfo.Text = "@" .. player.Name .. "\nConta com " .. player.AccountAge .. " dias"
+	perfilInfo.TextSize = 11
+	perfilInfo.TextTransparency = 0.25
+	perfilInfo.Font = Enum.Font.Gotham
+	perfilInfo.TextXAlignment = Enum.TextXAlignment.Left
+	perfilInfo.TextYAlignment = Enum.TextYAlignment.Top
+	perfilInfo.Parent = perfil
+
+	table.insert(registroCartoes, { item = perfil, stroke = perfilStroke, titulo = perfilNome, corpo = perfilInfo })
+
+	task.spawn(function()
+		local ok, img = pcall(function()
+			return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+		end)
+		if ok and img and avatar.Parent then avatar.Image = img end
+	end)
+
+	-- ====================== DESEMPENHO AO VIVO ======================
+	local statsCard = criarCartao(paginaInicio, "Desempenho ao vivo", "FPS: --   •   Ping: --   •   Jogadores: --", 6)
+	local statsCorpo = registroCartoes[#registroCartoes].corpo
+
+	local acumulado, quadros, ultimoStats = 0, 0, os.clock()
+	conectar(RunService.RenderStepped, function(dt)
+		acumulado = acumulado + dt
+		quadros = quadros + 1
+		local agora = os.clock()
+		if agora - ultimoStats < 0.5 then return end
+		ultimoStats = agora
+
+		local fps = math.floor(quadros / math.max(acumulado, 0.001) + 0.5)
+		acumulado, quadros = 0, 0
+
+		if not (janela.Visible and paginaInicio.Visible) then return end
+
+		local ping = nil
+		pcall(function()
+			ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+		end)
+		statsCorpo.Text = string.format(
+			"FPS: %d   •   Ping: %s   •   Jogadores: %d/%d",
+			fps, ping and (ping .. " ms") or "--", #Players:GetPlayers(), Players.MaxPlayers
+		)
+	end)
+
+	-- ====================== BUSCA DE FUNÇÕES ======================
+	local caixa = Instance.new("Frame")
+	caixa.Name = "Busca"
+	caixa.Size = UDim2.new(1, 0, 0, 42)
+	caixa.LayoutOrder = 7
+	caixa.BorderSizePixel = 0
+	caixa.Parent = paginaInicio
+	arredondar(caixa, 12)
+
+	local caixaStroke = Instance.new("UIStroke")
+	caixaStroke.Thickness = 1
+	caixaStroke.Transparency = 0.5
+	caixaStroke.Parent = caixa
+
+	local lupa = Instance.new("TextLabel")
+	lupa.Size = UDim2.fromOffset(30, 42)
+	lupa.Position = UDim2.fromOffset(8, 0)
+	lupa.BackgroundTransparency = 1
+	lupa.Text = "🔍"
+	lupa.TextSize = 16
+	lupa.Font = Enum.Font.GothamBold
+	lupa.Parent = caixa
+
+	local entrada = Instance.new("TextBox")
+	entrada.Size = UDim2.new(1, -50, 1, 0)
+	entrada.Position = UDim2.fromOffset(40, 0)
+	entrada.BackgroundTransparency = 1
+	entrada.Text = ""
+	entrada.PlaceholderText = "Buscar função (ex.: fast, soru, dash...)"
+	entrada.PlaceholderColor3 = Color3.fromRGB(140, 140, 160)
+	entrada.ClearTextOnFocus = false
+	entrada.TextXAlignment = Enum.TextXAlignment.Left
+	entrada.TextSize = 13
+	entrada.Font = Enum.Font.Gotham
+	entrada.Parent = caixa
+
+	table.insert(registroCartoes, { item = caixa, stroke = caixaStroke, titulo = lupa, corpo = entrada })
+
+	local resultados = Instance.new("Frame")
+	resultados.Name = "Resultados"
+	resultados.Size = UDim2.new(1, 0, 0, 0)
+	resultados.AutomaticSize = Enum.AutomaticSize.Y
+	resultados.LayoutOrder = 8
+	resultados.BackgroundTransparency = 1
+	resultados.Parent = paginaInicio
+
+	local layRes = Instance.new("UIListLayout")
+	layRes.Padding = UDim.new(0, 4)
+	layRes.SortOrder = Enum.SortOrder.LayoutOrder
+	layRes.Parent = resultados
+
+	local botoesRes = {}
+
+	local function nomeDaAba(item)
+		local pai = item.Parent
+		return pai and string.sub(pai.Name, 8) or nil -- tira "Pagina_"
+	end
+
+	-- pisca o item encontrado
+	local function piscar(reg)
+		task.spawn(function()
+			for _ = 1, 3 do
+				if not reg.stroke.Parent then return end
+				TweenService:Create(reg.stroke, TweenInfo.new(0.18), { Transparency = 0, Thickness = 3 }):Play()
+				task.wait(0.22)
+				TweenService:Create(reg.stroke, TweenInfo.new(0.25), { Transparency = 0.75, Thickness = 1 }):Play()
+				task.wait(0.3)
+			end
+		end)
+	end
+
+	local function irPara(reg)
+		local aba = nomeDaAba(reg.item)
+		if not aba or not paginas[aba] then return end
+		selecionarAba(aba)
+		task.spawn(function()
+			task.wait(0.35)
+			local pag = paginas[aba]
+			local y = reg.item.AbsolutePosition.Y - pag.AbsolutePosition.Y + pag.CanvasPosition.Y - 10
+			pag.CanvasPosition = Vector2.new(0, math.max(0, y))
+			piscar(reg)
+		end)
+	end
+
+	local function limparResultados()
+		for _, b in ipairs(botoesRes) do
+			for i = #registroBotoes, 1, -1 do
+				if registroBotoes[i].btn == b then table.remove(registroBotoes, i) end
+			end
+			b:Destroy()
+		end
+		table.clear(botoesRes)
+	end
+
+	local function buscar(texto)
+		limparResultados()
+		texto = string.lower(texto or "")
+		if #texto < 2 then return end
+
+		local achados = {}
+		local function varrer(lista)
+			for _, reg in ipairs(lista) do
+				if #achados >= 8 then return end
+				local nome = reg.label and reg.label.Text or ""
+				if string.find(string.lower(nome), texto, 1, true) and reg.item.Parent then
+					table.insert(achados, { reg = reg, nome = nome })
+				end
+			end
+		end
+		varrer(registroToggles)
+		varrer(registroSliders)
+
+		if #achados == 0 then
+			local b = criarBotao(resultados, "Nada encontrado", UDim2.new(1, 0, 0, 30), nil, 1, false)
+			b.Active = false
+			table.insert(botoesRes, b)
+			return
+		end
+
+		for i, a in ipairs(achados) do
+			local aba = nomeDaAba(a.reg.item) or "?"
+			local b = criarBotao(resultados, a.nome .. "   —   " .. aba, UDim2.new(1, 0, 0, 32), nil, i, false)
+			b.TextXAlignment = Enum.TextXAlignment.Left
+			local pad = Instance.new("UIPadding")
+			pad.PaddingLeft = UDim.new(0, 12)
+			pad.Parent = b
+			b.MouseButton1Click:Connect(function() irPara(a.reg) end)
+			table.insert(botoesRes, b)
+		end
+	end
+
+	local tokenBusca = 0
+	entrada:GetPropertyChangedSignal("Text"):Connect(function()
+		tokenBusca = tokenBusca + 1
+		local meu = tokenBusca
+		task.delay(0.2, function()
+			if meu == tokenBusca then buscar(entrada.Text) end
+		end)
+	end)
+
+	-- ====================== OPÇÕES DE INTERFACE (Configs) ======================
+	criarTitulo(paginaConfigs, "Interface avançada", 40)
+
+	criarToggle(paginaConfigs, "Animações da interface", 41, function(on)
+		VFX.animUI = on
+	end, true)
+
+	-- guarda o valor original de cada canto/fonte e aplica uma proporção
+	local function aplicarCantos(fator)
+		for _, raiz in ipairs({ janela, consoleFrame }) do
+			for _, d in ipairs(raiz:GetDescendants()) do
+				if d:IsA("UICorner") and d.CornerRadius.Scale == 0 then
+					local base = d:GetAttribute("R0")
+					if not base then
+						base = d.CornerRadius.Offset
+						d:SetAttribute("R0", base)
+					end
+					d.CornerRadius = UDim.new(0, math.floor(base * fator))
+				end
+			end
+		end
+	end
+
+	local tokenCantos = 0
+	criarSlider(paginaConfigs, "Arredondamento dos cantos", 42, 0, 150, 100, function(v)
+		tokenCantos = tokenCantos + 1
+		local meu = tokenCantos
+		task.delay(0.15, function()
+			if meu == tokenCantos then aplicarCantos(v / 100) end
+		end)
+	end, "%")
+
+	criarSlider(paginaConfigs, "Espaçamento entre itens", 43, 2, 20, 8, function(v)
+		for _, pg in pairs(paginas) do
+			local lay = pg:FindFirstChildOfClass("UIListLayout")
+			if lay then lay.Padding = UDim.new(0, v) end
+		end
+	end, " px")
+
+	local function aplicarFonte(i)
+		for _, raiz in ipairs({ janela, consoleFrame }) do
+			for _, d in ipairs(raiz:GetDescendants()) do
+				if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+					local f0 = d:GetAttribute("F0")
+					if not f0 then
+						f0 = d.Font.Name
+						d:SetAttribute("F0", f0)
+					end
+					if f0 ~= "Code" then
+						if i == 1 then
+							d.Font = Enum.Font[f0]
+						elseif i == 2 then
+							d.Font = Enum.Font.Ubuntu
+						else
+							d.Font = string.find(f0, "Bold") and Enum.Font.SourceSansBold or Enum.Font.SourceSans
+						end
+					end
+				end
+			end
+		end
+	end
+
+	VFX.seletor(paginaConfigs, 44, { "Gotham", "Ubuntu", "Source" }, 1, function(i)
+		aplicarFonte(i)
+	end)
+
+	local botaoCentralizar = criarBotao(paginaConfigs, "⌖  Centralizar o menu", UDim2.new(1, 0, 0, 44), nil, 45, true)
+	botaoCentralizar.MouseButton1Click:Connect(function()
+		TweenService:Create(janela, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0.5, 0) }):Play()
+		consoleFrame.Position = ehMobile and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0.5, 40, 0.5, 40)
+		logar("info", "Menu centralizado.")
+	end)
+end)()
+
+----------------------------------------------------------------
+-- UI EXTRA (fundo, animações de abertura/clique, fontes, arredondamento, avisos)
+----------------------------------------------------------------
+;(function()
+	local BRANCO = Color3.new(1, 1, 1)
+	local GuiService = game:GetService("GuiService")
+
+	VFX.cliqueAnim = true   -- onda ao clicar
+
+	-- ====================== ONDA AO CLICAR (ripple) ======================
+	function VFX.ripple(obj)
+		if not VFX.cliqueAnim then return end
+		pcall(function()
+			obj.ClipsDescendants = true
+			local rel
+			if UserInputService.MouseEnabled then
+				local m = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+				rel = m - obj.AbsolutePosition
+			else
+				rel = obj.AbsoluteSize / 2
+			end
+
+			local onda = Instance.new("Frame")
+			onda.AnchorPoint = Vector2.new(0.5, 0.5)
+			onda.Position = UDim2.fromOffset(rel.X, rel.Y)
+			onda.Size = UDim2.fromOffset(0, 0)
+			onda.BackgroundColor3 = BRANCO
+			onda.BackgroundTransparency = 0.72
+			onda.BorderSizePixel = 0
+			onda.ZIndex = obj.ZIndex + 5
+			onda.Parent = obj
+			arredondar(onda, 999)
+
+			local maximo = math.max(obj.AbsoluteSize.X, obj.AbsoluteSize.Y) * 2.4
+			local t = TweenService:Create(onda, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = UDim2.fromOffset(maximo, maximo),
+				BackgroundTransparency = 1,
+			})
+			t.Completed:Connect(function() onda:Destroy() end)
+			t:Play()
+		end)
+	end
+
+	-- ====================== FUNDO DA JANELA ======================
+	local estiloFundo = 2 -- 1 liso | 2 degradê | 3 aurora
+
+	local camadaAurora = Instance.new("Frame")
+	camadaAurora.Name = "Aurora"
+	camadaAurora.Size = UDim2.fromScale(1, 1)
+	camadaAurora.BackgroundTransparency = 1
+	camadaAurora.BorderSizePixel = 0
+	camadaAurora.ClipsDescendants = true
+	camadaAurora.ZIndex = 0
+	camadaAurora.Visible = false
+	camadaAurora.Parent = janela
+
+	-- cada "blob" é uma pilha de círculos translúcidos (parece um brilho suave)
+	local blobs = {}
+	local ANELES = { 280, 224, 168, 112, 60 }
+	local ROTAS = {
+		{ ini = UDim2.fromScale(-0.1, 0.0), fim = UDim2.fromScale(0.35, 0.45), t = 11 },
+		{ ini = UDim2.fromScale(0.6, 0.5), fim = UDim2.fromScale(0.2, 0.05), t = 14 },
+		{ ini = UDim2.fromScale(0.3, 0.8), fim = UDim2.fromScale(0.8, 0.35), t = 9 },
+	}
+	for i, rota in ipairs(ROTAS) do
+		local holder = Instance.new("Frame")
+		holder.Size = UDim2.fromOffset(280, 280)
+		holder.Position = rota.ini
+		holder.BackgroundTransparency = 1
+		holder.BorderSizePixel = 0
+		holder.ZIndex = 0
+		holder.Parent = camadaAurora
+		local aneis = {}
+		for _, tam in ipairs(ANELES) do
+			local c = Instance.new("Frame")
+			c.AnchorPoint = Vector2.new(0.5, 0.5)
+			c.Position = UDim2.fromScale(0.5, 0.5)
+			c.Size = UDim2.fromOffset(tam, tam)
+			c.BackgroundTransparency = 0.955
+			c.BorderSizePixel = 0
+			c.ZIndex = 0
+			c.Parent = holder
+			arredondar(c, 200)
+			table.insert(aneis, c)
+		end
+		TweenService:Create(holder, TweenInfo.new(rota.t, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Position = rota.fim }):Play()
+		table.insert(blobs, aneis)
+	end
+
+	function VFX.pintarAurora(tema)
+		local cores = (tema.vfx and tema.vfxCores) or { tema.on, tema.on:Lerp(BRANCO, 0.4), tema.on }
+		for i, aneis in ipairs(blobs) do
+			local cor = cores[(i - 1) % #cores + 1]
+			for _, c in ipairs(aneis) do c.BackgroundColor3 = cor end
+		end
+	end
+
+	local function aplicarFundo()
+		gradFundo.Enabled = (estiloFundo ~= 1)
+		camadaAurora.Visible = (estiloFundo == 3)
+	end
+
+	-- ====================== ANIMAÇÃO DE ABERTURA ======================
+	local estiloAbrir = 1
+	local ESTILOS_ABRIR = {
+		function() return TweenInfo.new(0.25, Enum.EasingStyle.Back) end,
+		function() return TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out) end,
+		function() return TweenInfo.new(0.12, Enum.EasingStyle.Linear) end,
+		function() return TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out) end,
+	}
+	function VFX.infoAbrir() return ESTILOS_ABRIR[estiloAbrir]() end
+	function VFX.infoFechar()
+		return TweenInfo.new(estiloAbrir == 3 and 0.1 or 0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	end
+
+	-- ====================== FONTES ======================
+	local familia = "Gotham"
+	local function aplicarFonte(obj)
+		if not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then return end
+		pcall(function()
+			local base = obj:GetAttribute("FonteBase")
+			if not base then
+				base = obj.Font.Name
+				obj:SetAttribute("FonteBase", base)
+			end
+			if base == "Code" then return end -- console fica monoespaçado
+			if familia == "Gotham" then
+				obj.Font = Enum.Font[base]
+			else
+				obj.Font = Enum.Font[familia]
+			end
+		end)
+	end
+
+	local function aplicarFonteEmTudo()
+		for _, d in ipairs(gui:GetDescendants()) do aplicarFonte(d) end
+	end
+
+	-- o que for criado depois (logs, avisos...) também usa a fonte escolhida
+	conectar(gui.DescendantAdded, function(d)
+		if familia ~= "Gotham" then task.defer(aplicarFonte, d) end
+	end)
+
+	-- ====================== OPÇÕES NA ABA CONFIGS ======================
+	criarTitulo(paginaConfigs, "Visual da janela", 60)
+
+	criarTitulo(paginaConfigs, "Fundo da janela", 61)
+	VFX.seletor(paginaConfigs, 62, { "Liso", "Degradê", "Aurora" }, estiloFundo, function(i)
+		estiloFundo = i
+		aplicarFundo()
+	end)
+
+	criarTitulo(paginaConfigs, "Animação de abertura", 63)
+	VFX.seletor(paginaConfigs, 64, { "Elástica", "Suave", "Rápida", "Zoom" }, estiloAbrir, function(i)
+		estiloAbrir = i
+	end)
+
+	criarTitulo(paginaConfigs, "Fonte do menu", 65)
+	VFX.seletor(paginaConfigs, 66, { "Gotham", "Ubuntu", "Nunito", "Roboto" }, 1, function(_, nome)
+		familia = nome
+		aplicarFonteEmTudo()
+	end)
+	VFX.seletor(paginaConfigs, 67, { "Oswald", "Jura", "FredokaOne" }, 0, function(_, nome)
+		familia = nome
+		aplicarFonteEmTudo()
+	end)
+
+	criarTitulo(paginaConfigs, "Posição dos avisos", 68)
+	VFX.seletor(paginaConfigs, 69, { "Topo", "Baixo" }, 1, function(i)
+		local box = VFX.toastBox
+		if not box then return end
+		local lay = box:FindFirstChildOfClass("UIListLayout")
+		if i == 1 then
+			box.AnchorPoint = Vector2.new(0.5, 0)
+			box.Position = UDim2.new(0.5, 0, 0, 10)
+			if lay then lay.VerticalAlignment = Enum.VerticalAlignment.Top end
+		else
+			box.AnchorPoint = Vector2.new(0.5, 1)
+			box.Position = UDim2.new(0.5, 0, 1, -14)
+			if lay then lay.VerticalAlignment = Enum.VerticalAlignment.Bottom end
+		end
+	end)
+
+	criarToggle(paginaConfigs, "Onda ao clicar", 70, function(on) VFX.cliqueAnim = on end, true)
+
+	aplicarFundo()
+end)()
+
+----------------------------------------------------------------
 -- INICIALIZAÇÃO
 ----------------------------------------------------------------
 aplicarTema(TEMA_PADRAO, true)
@@ -4877,10 +5693,10 @@ local function definirAberto(valor)
 	if aberto then
 		janela.Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0)
 		janela.Visible = true
-		TweenService:Create(janela, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = tamanhoOriginal }):Play()
+		TweenService:Create(janela, VFX.infoAbrir and VFX.infoAbrir() or TweenInfo.new(0.25, Enum.EasingStyle.Back), { Size = tamanhoOriginal }):Play()
 		if VFX.abrir then VFX.abrir() end
 	else
-		local t = TweenService:Create(janela, TweenInfo.new(0.15), { Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0) })
+		local t = TweenService:Create(janela, VFX.infoFechar and VFX.infoFechar() or TweenInfo.new(0.15), { Size = UDim2.fromOffset(tamanhoOriginal.X.Offset, 0) })
 		t:Play()
 		t.Completed:Wait()
 		if not aberto then janela.Visible = false end
